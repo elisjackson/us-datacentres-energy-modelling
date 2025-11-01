@@ -1,0 +1,9 @@
+rasterio
+matplotlib
+geopandas
+folium
+mapclassify
+branca
+streamlit
+streamlit_folium
+plotly
