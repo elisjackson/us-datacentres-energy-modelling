@@ -8,19 +8,45 @@ from streamlit_folium import st_folium
 import pandas as pd
 import json
 import plotly.graph_objects as go
+from calculate_energy import solve
 
 st.set_page_config(layout="wide")
 st.title("Data centre energy model")
 
-def get_central_loc(state):
-    if state == "Washington":
-        return [47, -108], 6
-    elif state == "Oregon":
-        return [44.37, -108], 6
-    elif state == "California":
-        return [36.94, -95.18], 5
-    else:
-        return [47, -108], 5
+def energy_calcs(slider_vals_dict):
+    """
+    """
+    hex_cell = st.session_state.last_clicked_hex
+    # get hex cell co-ordinates
+    coords = get_hex_lat_long(hex_cell)
+
+    # rename keys to match function if necessary
+    arg_map = {
+        "data_centre": "target_capacity",
+        "wind": "wind_mw",
+        "pv": "pv_mw",
+        "bess_mw": "bess_mw",
+        "bess_mwh": "bess_mwh",
+    }
+    kwargs = {arg_map[k]: v for k, v in slider_vals_dict.items()}
+
+    st.session_state.energy_result, st.session_state.cost_result = solve(
+        location=(coords["lat"], coords["long"], 100),
+        mean_ws=11,
+        **kwargs
+        )
+    st.session_state.cost_result = st.session_state.cost_result / 1000
+
+def store_slider_vals():
+    """Store all slider values into session_state before calling energy_calcs"""
+    st.session_state.slider_vals = {
+        "data_centre": st.session_state.data_centre,
+        "wind": st.session_state.wind,
+        "pv": st.session_state.pv,
+        "bess_mw": st.session_state.bess_mw,
+        "bess_mwh": st.session_state.bess_mwh,
+    }
+    energy_calcs(st.session_state.slider_vals)  # pass the dictionary
 
 @st.cache_data
 def get_colormap(layer_type: str):
@@ -165,6 +191,20 @@ def get_json_feature_range(geojson: dict, property: str) -> list[int]:
     all_vals = [v for v in props if v is not None]
     return [min(all_vals), max(all_vals)]
 
+@st.cache_data
+def get_hex_lat_long(target_hex: int) -> dict[str, float]:
+    geojson_crs = wind_pv_dict["crs"]["properties"]["name"]
+    if geojson_crs[-5] != "CRS84":
+        print(geojson_crs[-5])
+        print("WARNING - expecting CRS84")
+    features = wind_pv_dict["features"]
+    hex_feature = [f for f in features if f["properties"]["hex"] == target_hex][0]
+    co_ords_crs84 = hex_feature["geometry"]["coordinates"][0][0]
+    # crs84 is in long, lat; wgs84 is in lat, long 
+    # co_ord_wgs84 = [co_ords_crs84[1], co_ords_crs84[0]]
+    return {"lat": co_ords_crs84[1], "long": co_ords_crs84[0]}
+    
+
 # data preparation
 wind_pv_dict, wind_pv_df = load_geojson_data()
 state_hex_lookup = load_state_hex_lookup()
@@ -172,6 +212,12 @@ state_hex_lookup = load_state_hex_lookup()
 # session state management
 if "last_clicked_hex" not in st.session_state:
     st.session_state.last_clicked_hex = ""
+
+if "energy_result" not in st.session_state:
+    st.session_state.energy_result = pd.DataFrame()
+
+if "cost_result" not in st.session_state:
+    st.session_state.cost_result = pd.DataFrame()
 
 # custom styles
 st.markdown(
@@ -238,7 +284,8 @@ with st.expander("1️⃣ Select location", expanded=True):
         if st.session_state.last_clicked_hex:
             selected_hex = st.session_state.last_clicked_hex
             # Titles
-            st.markdown(f"### Selected hex ID: {selected_hex}")
+            st.markdown(f"### Cell attributes")
+            st.markdown(f"#### Selected hex ID: {selected_hex}")
             states = get_states_from_hex(
                 state_hex_lookup,
                 selected_hex
@@ -247,7 +294,6 @@ with st.expander("1️⃣ Select location", expanded=True):
             st.markdown(f"#### {states_text}: {", ".join(states)}")
 
             # Wind speed data plot
-            st.markdown("#### Wind speed vs other US cells")
             min_ws = wind_pv_df["mean_120m_wind_speed"].min()
             max_ws = wind_pv_df["mean_120m_wind_speed"].max()
             ws_fig = go.Figure()
@@ -341,20 +387,163 @@ with st.expander("1️⃣ Select location", expanded=True):
                 plot_bgcolor="rgb(26,28,36)"
                 )
             st.plotly_chart(pv_fig, key="hex_pv")
-
-            st.markdown("#### Estimated capacity factors")
-            st.markdown("**abc** 123")
         else:
             st.markdown("## Select a hex cell to view data")
 
-with st.expander("2️⃣ Select capacities", expanded=False):
+with st.expander("2️⃣ Select capacities", expanded=True):
     with st.form(key="select_capacities_form"):
-        wind_slider = st.slider("Wind MW", 0, 10)
-        pv_slider = st.slider("PV MW", 0, 10)
-        bess_mw_slider = st.slider("BESS MW", 0, 10)
-        bess_mwh_slider = st.slider("BESS MWh", 0, 10)
-        st.form_submit_button("Calculate")
+        st.markdown("### Inputs")
+        st.slider("Data centre capacity (GW)", 0, 10, key="data_centre")
+        st.slider("Wind capacity (GW)", 0, 10, key="wind")
+        st.slider("Solar PV capacity (GW)", 0, 10, key="pv")
+        bess1, bess2 = st.columns(2)
+        with bess1:
+            st.slider("Battery capacity (MW)", 0, 10, key="bess_mw")
+        with bess2:
+            st.slider("Battery capacity (MWh)", 0, 10, key="bess_mwh")
 
-with st.expander("3️⃣ View results", expanded=False):
-    # df = pd.DataFrame()
+        if st.session_state.energy_result.empty:
+            empty_results = True
+        else:
+            empty_results = False
+        empty_results = st.session_state.energy_result.empty
+
+        st.form_submit_button(
+            "Calculate",
+            key="select_capacities_form_submit",
+            disabled=not st.session_state.last_clicked_hex,
+            on_click=store_slider_vals  # store and call energy_calcs
+        )
+    # with st.form(key="results"):
+    with st.container(border=True, key="results_container"):
+        st.markdown("### Results")
+
+        if not st.session_state.energy_result.empty:
+
+            total_costs_col, total_emissions_col = st.columns(2)
+
+            with total_costs_col:
+                with st.container(border = True):
+                    lifetime_cost_total = round(st.session_state.cost_result["lifetime_cost"].sum())
+                    st.markdown(
+                        f"<h3 style='text-align: center;'>Lifetime cost: ${lifetime_cost_total:,}k</h3>",
+                        unsafe_allow_html=True
+                    )
+
+            with total_emissions_col:
+                with st.container(border = True):
+                    print(st.session_state.cost_result.columns)
+                    lifetime_co2_total = round(st.session_state.cost_result["lifetime_kgCO2"].sum())
+                    st.markdown(
+                        f"<h3 style='text-align: center;'>Lifetime emissions: {lifetime_co2_total:,} tCO2</h3>",
+                        unsafe_allow_html=True
+                    )
+
+        tab1, tab2 = st.tabs(["Charts", "Full data tables"])
+
+        with tab1:
+            if not st.session_state.energy_result.empty:
+
+                df = st.session_state.energy_result
+                cols_to_plot = [
+                    "demand",
+                    "farm_wind_power",
+                    "PV_AC",
+                    "bess_power",
+                    "gas_demand"
+                    ]
+                df = df[["datetime"] + cols_to_plot]
+
+                # Time-series plot
+                df_long = df.melt(id_vars="datetime", var_name="variable", value_name="value")
+                fig_ts = px.line(df_long, x="datetime", y="value", color="variable",
+                    title="Modelled power flows")
+                fig_ts.update_layout(
+                    xaxis_title="Date",
+                    yaxis_title="Value",
+                    template="plotly_white"
+                )
+                # Enable the range slider
+                fig_ts.update_xaxes(
+                    rangeslider_visible=True,
+                    rangeselector=dict(
+                        buttons=list([
+                            dict(step="all", label="All"),
+                            dict(count=3, label="3m", step="month", stepmode="backward"),
+                            dict(count=1, label="1m", step="month", stepmode="backward"),
+                            dict(count=7, label="1w", step="day", stepmode="backward"),
+                        ])
+                    )
+                )
+                st.plotly_chart(fig_ts)
+                color_map = {trace.name: trace.line.color for trace in fig_ts.data}
+
+                annual_energy_col, costs_col = st.columns(2)
+                
+                with annual_energy_col:
+                    # Annual energy plot
+                    annual_sums = df[cols_to_plot].sum().reset_index()
+                    annual_sums = annual_sums.round()
+                    annual_sums.columns = ["variable", "total"]
+                    show_ad = ["farm_wind_power", "PV_AC", "gas_demand"]
+                    annual_sums = annual_sums[annual_sums["variable"].isin(show_ad)]
+                    fig_ad = px.bar(
+                        annual_sums,
+                        x="variable",
+                        y="total",
+                        color="variable",
+                        text="total",
+                        color_discrete_map=color_map,
+                        labels={"x": "End Use", "y": "Annual Energy Demand (MWh)"},
+                        title="Annual Energy Demand by End Use"
+                    )
+                    fig_ad.update_traces(marker_line_width=0)
+                    fig_ad.update_layout(template="plotly_white")
+                    st.plotly_chart(fig_ad)
+
+                with costs_col:
+                    # cost plot
+                    df_costs = st.session_state.cost_result
+                    df_costs = df_costs.reset_index().rename(columns={"index": "tech"})
+                    df_costs = df_costs.round()
+                    # Melt into long format
+                    df_costs_long = df_costs.melt(
+                        id_vars="tech",
+                        value_vars=["capex", "opex_20yr", "fuel_cost_20yr"],
+                        var_name="cost_type",
+                        value_name="cost"
+                        )
+                    # stacked bar chart
+                    fig_costs = px.bar(
+                        df_costs_long,
+                        x="tech",
+                        y="cost",
+                        color="cost_type",
+                        title="Lifetime Cost by Technology",
+                        text="cost",
+                        color_discrete_sequence=px.colors.qualitative.Safe
+                        )
+                    st.plotly_chart(fig_costs)
+
+            else:
+                st.markdown("### Hit 'Calculate' to view results")
+
+        with tab2:
+            if not st.session_state.energy_result.empty:
+                st.markdown("#### Time series data")
+                st.markdown("Demand / generation units are in MW")
+                st.dataframe(st.session_state.energy_result)
+                st.markdown("#### Cost and emissions data")
+                st.markdown("Costs: $k, Emissions: tCO2")
+                df_costs = df_costs.rename(
+                    columns={
+                        "kgCO2": "tCO2",
+                        "lifetime_kgCO2": "tCO2_20yr"
+                    }
+                    )
+                st.dataframe(df_costs)
+            else:
+                st.markdown("### Hit 'Calculate' to view results")
+
+with st.expander("Methodology and assumptions"):
     pass

@@ -1,0 +1,3 @@
+https://nsrdb.nrel.gov/data-viewer
+USA & Americas - Typical Meteorological Year
+tmy-2024
