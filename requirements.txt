@@ -7,3 +7,4 @@ branca
 streamlit
 streamlit_folium
 plotly
+pvlib
