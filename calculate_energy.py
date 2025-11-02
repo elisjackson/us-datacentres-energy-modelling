@@ -3,6 +3,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 import time
 import pv_model
+from pathlib import Path
 
 def custom_round(x, base=5):
     return base * round(float(x)/base)
@@ -207,7 +208,7 @@ def get_weather_file() -> pd.DataFrame:
     """
     Load typical year weatherfile
     """
-    fpath = r"inputs\weather_file\726234_41.65_-95.74_tmy-2024.csv"
+    fpath = Path("inputs") / "weather_file" / "726234_41.65_-95.74_tmy-2024.csv"
     df = pd.read_csv(fpath, header=2)
     df = df.drop(columns=["Year", "Minute"])
     return df
