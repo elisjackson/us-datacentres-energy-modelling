@@ -389,7 +389,27 @@ with st.expander("1️⃣ Select location", expanded=True):
                 )
             st.plotly_chart(pv_fig, key="hex_pv")
         else:
-            st.markdown("## Select a hex cell to view data")
+            st.markdown(
+                """
+                <div style="
+                    background-color:#172d43;
+                    border-left: 0.25rem solid #2196f3;
+                    padding: 0.75em 1em;
+                    border-radius: 0.5em;
+                    margin-bottom: 1em;">
+                    <div style="line-height: 1.5em; font-size: 1.5em;">ℹ️</div>
+                    <h3 style="color:#FFFFFF; margin:0;">Select a hex cell to view data</h3>
+                    <p style="color:#FFFFFF; margin-top:0.5em; font-size:1em;">
+                        It may take a couple of attempts - we have a little quirk of Streamlit to deal with...
+                    </p>
+                    <p style="color:#FFFFFF; margin-top:0.5em; font-size:1em;">
+                        Once selected, move on to Stage 2 <i>(Select capacities)</i>
+                    </p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
 
 with st.expander("2️⃣ Select capacities", expanded=True):
     with st.form(key="select_capacities_form"):
