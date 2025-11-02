@@ -9,6 +9,7 @@ import pandas as pd
 import json
 import plotly.graph_objects as go
 from calculate_energy import solve
+from pathlib import Path
 
 st.set_page_config(layout="wide")
 st.title("Data centre energy model")
@@ -148,7 +149,7 @@ def get_folium_geojson(wind_pv_data, layer_type: str) -> folium.GeoJson:
 def load_geojson_data() -> (dict, pd.DataFrame):
     """Load geojson data from hex_cell_outputs folder."""
     print("Loading geojson data")
-    fpath = r"hex_cell_outputs\all_hex_mean_wind_and_PV_GTI.geojson"
+    fpath = Path("hex_cell_outputs") / "all_hex_mean_wind_and_PV_GTI.geojson"
     with open(fpath) as f:
         data = json.load(f)
     df = gpd.read_file(fpath).drop(columns="geometry").set_index("hex")
@@ -157,7 +158,7 @@ def load_geojson_data() -> (dict, pd.DataFrame):
 @st.cache_data
 def load_state_hex_lookup() -> dict:
     print("Loading state-hex lookup")
-    fpath = r"hex_cell_outputs\states_hex_lookup.json"
+    fpath = Path("hex_cell_outputs") / "states_hex_lookup.json"
     with open(fpath) as f:
         data = json.load(f)
     # convert list to set for faster searching
