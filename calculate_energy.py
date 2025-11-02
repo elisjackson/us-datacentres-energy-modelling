@@ -279,13 +279,13 @@ def get_GNESTE_assumptions(energy_tech: str) -> pd.DataFrame:
         "fuel_price" (USD/MWh)
     """
     if energy_tech == "gas":
-        file = r"GNESTE_assumptions\GNESTE_Gas_Power.csv"
+        file = Path("GNESTE_assumptions") / "GNESTE_Gas_Power.csv"
     elif energy_tech == "bess":
-        file = r"GNESTE_assumptions\GNESTE_Battery_Storage.csv"
+        file = Path("GNESTE_assumptions") / "GNESTE_Battery_Storage.csv"
     elif energy_tech == "wind":
-        file = r"GNESTE_assumptions\GNESTE_Wind_Power.csv"
+        file = Path("GNESTE_assumptions") / "GNESTE_Wind_Power.csv"
     elif energy_tech == "pv":
-        file = r"GNESTE_assumptions\GNESTE_Solar_Power.csv"
+        file = Path("GNESTE_assumptions") / "GNESTE_Solar_Power.csv"
     else:
         raise ValueError("Type not supported")
 
