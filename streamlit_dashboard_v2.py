@@ -10,6 +10,7 @@ import json
 import plotly.graph_objects as go
 from calculate_energy import solve
 from pathlib import Path
+from typing import Literal
 
 st.set_page_config(layout="wide")
 st.title("Data centre energy model")
@@ -50,7 +51,7 @@ def store_slider_vals():
     energy_calcs(st.session_state.slider_vals)  # pass the dictionary
 
 @st.cache_data
-def get_colormap(layer_type: str):
+def get_colormap(layer_type: Literal["wind", "pv"]):
     """Get colormap for given layer type."""
     print(f"Building {layer_type} colormap")
     if layer_type == "wind":
@@ -58,13 +59,13 @@ def get_colormap(layer_type: str):
         colormap = linear.YlGn_09.scale(
             vals[0], vals[1]
         )
-        colormap.caption = "Wind speed"
+        colormap.caption = "Wind speed (120m)"
     elif layer_type == "pv":
         vals = get_json_feature_range(wind_pv_dict, "mean_PV_GTI")
         colormap = linear.YlOrBr_05.scale(
             vals[0], vals[1]
         )
-        colormap.caption = "PV GTI"
+        colormap.caption = "Global Horizontal Irradiance (W/m2)"
     else:
         return ValueError(f"{layer_type} not supported")
     return colormap
@@ -104,19 +105,21 @@ def create_colorbar_legend(colormap, num_ticks: int = 5) -> str:
 
 def get_folium_geojson(wind_pv_data, layer_type: str) -> folium.GeoJson:
     print(f"Preparing {layer_type} folium.GeoJson")
-    colormap = get_colormap(layer_type=layer_type)
+    cmap = get_colormap(
+        layer_type="wind" if layer_select == "Wind speed" else "pv"
+        )
     popup = folium.GeoJsonPopup(
         fields=["hex", "mean_120m_wind_speed", "mean_PV_GTI"],
         localize=True,
         labels=True
     )
-    if layer_type == "wind":
+    if layer_type == "Wind speed":
         return folium.GeoJson(
             wind_pv_data,
             name="state_wind_speeds",
             style_function=lambda feature: {
                 "fillColor": (
-                    colormap(feature["properties"]["mean_120m_wind_speed"])
+                    cmap(feature["properties"]["mean_120m_wind_speed"])
                     if feature["properties"]["mean_120m_wind_speed"] is not None
                     else "#808080"
                     ),
@@ -134,7 +137,7 @@ def get_folium_geojson(wind_pv_data, layer_type: str) -> folium.GeoJson:
             wind_pv_data,
             name="state_gtis",
             style_function=lambda feature: {
-                "fillColor": colormap(feature["properties"]["mean_PV_GTI"]),
+                "fillColor": cmap(feature["properties"]["mean_PV_GTI"]),
                 "color": "grey",
                 "weight": 1,
                 "fillOpacity": 0.7,
@@ -236,16 +239,12 @@ with st.expander("1️⃣ Select location", expanded=True):
 
         layer_select = st.radio(
             "Map layer",
-            options=["wind", "pv"],
+            options=["Wind speed", "Global Horizontal Irradiance (GHI)"],
             key="layer_radio",
             horizontal=True
         )
 
         print("Loading map")
-        layer_colormaps = {
-            "wind": get_colormap(layer_type="wind"),
-            "pv": get_colormap(layer_type="pv")
-        }
         map_params = get_map_starting_parameters()
         m = folium.Map(
             location=[map_params["y"], map_params["x"]],
@@ -260,7 +259,9 @@ with st.expander("1️⃣ Select location", expanded=True):
                 key=f"hex_map",
                 )
             # Build legend
-            cmap = layer_colormaps[layer_select]
+            cmap = get_colormap(
+                layer_type="wind" if layer_select == "Wind speed" else "pv"
+                )
             legend_html = create_colorbar_legend(cmap, num_ticks=5)
             st.markdown(legend_html, unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
@@ -269,7 +270,6 @@ with st.expander("1️⃣ Select location", expanded=True):
                 key="map-form-submit"
                 )
 
-        # --- Update session state safely ---
         if map_submitted:
             new_hex = (
                 hex_map
