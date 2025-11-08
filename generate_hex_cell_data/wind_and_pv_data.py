@@ -143,6 +143,14 @@ def main():
     # Convert back to original CRS
     hex_gti_gdf = hex_gti_gdf.to_crs(usa_hex.crs)
 
+    # rounding
+    hex_wind_gdf["mean_120m_wind_speed"] = (
+        hex_wind_gdf["mean_120m_wind_speed"].round(2)
+        )
+    hex_gti_gdf["mean_PV_GTI"] = (
+        hex_gti_gdf["mean_PV_GTI"].round(0).astype("Int64")
+    )
+
     outputs_dir = "hex_cell_outputs"
     if not os.path.exists(outputs_dir):
         os.mkdir(outputs_dir)

@@ -1,0 +1,4 @@
+- GW vs MW inputs
+- map layer names (pv and wind)
+- chart axis titles
+- Select capacities section - add info section if no hex cell selected

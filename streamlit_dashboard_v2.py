@@ -110,6 +110,7 @@ def get_folium_geojson(wind_pv_data, layer_type: str) -> folium.GeoJson:
         )
     popup = folium.GeoJsonPopup(
         fields=["hex", "mean_120m_wind_speed", "mean_PV_GTI"],
+        aliases=["Cell ID", "120m wind speed (m/s)", "GHI (W/m2)"],
         localize=True,
         labels=True
     )
@@ -132,7 +133,7 @@ def get_folium_geojson(wind_pv_data, layer_type: str) -> folium.GeoJson:
             },
             popup=popup
             )
-    elif layer_type == "pv":
+    elif layer_type == "Global Horizontal Irradiance (GHI)":
         return folium.GeoJson(
             wind_pv_data,
             name="state_gtis",
@@ -149,7 +150,7 @@ def get_folium_geojson(wind_pv_data, layer_type: str) -> folium.GeoJson:
             )
 
 @st.cache_data
-def load_geojson_data() -> (dict, pd.DataFrame):
+def load_geojson_data() -> tuple[dict, pd.DataFrame]:
     """Load geojson data from hex_cell_outputs folder."""
     print("Loading geojson data")
     fpath = Path("hex_cell_outputs") / "all_hex_mean_wind_and_PV_GTI.geojson"
@@ -159,7 +160,7 @@ def load_geojson_data() -> (dict, pd.DataFrame):
     return data, df
 
 @st.cache_data
-def load_state_hex_lookup() -> dict:
+def load_state_hex_lookup() -> dict[str, set]:
     print("Loading state-hex lookup")
     fpath = Path("hex_cell_outputs") / "states_hex_lookup.json"
     with open(fpath) as f:
@@ -207,6 +208,76 @@ def get_hex_lat_long(target_hex: int) -> dict[str, float]:
     # crs84 is in long, lat; wgs84 is in lat, long 
     # co_ord_wgs84 = [co_ords_crs84[1], co_ords_crs84[0]]
     return {"lat": co_ords_crs84[1], "long": co_ords_crs84[0]}
+
+def create_1d_data_plot(
+        df: pd.DataFrame,
+        data_col: str,
+        hex_id: int
+        ):
+    """
+    df: dataframe containing wind speed and GTI data per hex cell
+    data_col: dataframe column for plot values
+    selected_hex: the celexted hex cell ID
+    """
+
+    if data_col == "mean_120m_wind_speed":
+        color='rgb(36, 134, 68)'
+        layer_name="Cell 120m wind speed (m/s)"
+        x_range = [2, 11]  # TODO - make dynamic
+    elif data_col == "mean_PV_GTI":
+        color='rgb(215, 94, 13)'
+        layer_name="Cell PV GHI (W/m2)"
+        x_range = [1100, 2600]  # TODO - make dynamic
+    else:
+        raise ValueError(f"{data_col} not supported")
+    
+    min_val = df[data_col].min()
+    max_val = df[data_col].max()
+
+    fig = go.Figure()
+    # vertical (line-ns) markers for the min/max values across US
+    fig.add_trace(go.Scatter(
+        x=[min_val, max_val], y=[0,0],
+        mode='markers',
+        marker=dict(
+            symbol="line-ns",
+            size=20,
+            line=dict(
+                color="grey",
+                width=3
+            )
+        ),
+        name="US min, max values"
+    ))
+    fig.add_trace(go.Scatter(
+        x=[df.iloc[hex_id][data_col]],
+        y=[0,0],
+        mode='markers',
+        marker_size=20,
+        marker=dict(
+            color=color,
+        ),
+        name=layer_name
+    ))
+    fig.update_xaxes(
+        showgrid=True,
+        range=x_range,
+        ticks="inside",
+        nticks=10 if data_col == "mean_120m_wind_speed" else None,  # TODO - tidy
+        tick0=1 if data_col == "mean_120m_wind_speed" else None,
+        dtick=1 if data_col == "mean_120m_wind_speed" else None
+        )
+    fig.update_yaxes(
+        showgrid=False, 
+        zeroline=True,
+        zerolinecolor='grey',
+        zerolinewidth=3,
+        showticklabels=False)
+    fig.update_layout(
+        height=225,
+        plot_bgcolor="rgb(26,28,36)"
+        )
+    return fig
     
 
 # data preparation
@@ -256,7 +327,7 @@ with st.expander("1️⃣ Select location", expanded=True):
                 m,
                 width=2000,
                 height=500,
-                key=f"hex_map",
+                key="hex_map",
                 )
             # Build legend
             cmap = get_colormap(
@@ -295,99 +366,21 @@ with st.expander("1️⃣ Select location", expanded=True):
             st.markdown(f"#### {states_text}: {", ".join(states)}")
 
             # Wind speed data plot
-            min_ws = wind_pv_df["mean_120m_wind_speed"].min()
-            max_ws = wind_pv_df["mean_120m_wind_speed"].max()
-            ws_fig = go.Figure()
-            ws_fig.add_trace(go.Scatter(
-                x=[min_ws, max_ws], y=[0,0],
-                mode='markers',
-                marker=dict(
-                    symbol="line-ns",
-                    size=20,
-                    line=dict(
-                        color="grey",
-                        width=3
-                    )
-                ),
-                name="US min, max values"
-            ))
-            ws_fig.add_trace(go.Scatter(
-                x=[wind_pv_df.iloc[selected_hex]["mean_120m_wind_speed"]],
-                y=[0,0],
-                mode='markers',
-                marker_size=20,
-                marker=dict(
-                    color='rgb(36, 134, 68)',
-                ),
-                name="Cell wind speed"
-            ))
-            ws_fig.update_xaxes(
-                showgrid=True,
-                range=[2, 11],
-                ticks="inside",
-                nticks=10,
-                tick0=1, dtick=1
-                )
-            ws_fig.update_yaxes(
-                showgrid=False, 
-                zeroline=True,
-                zerolinecolor='grey',
-                zerolinewidth=3,
-                showticklabels=False)
-            ws_fig.update_layout(
-                height=225,
-                plot_bgcolor="rgb(26,28,36)"
-                )
-            st.plotly_chart(ws_fig, key="hex_ws")
+            ws_fig = create_1d_data_plot(
+                df=wind_pv_df,
+                data_col="mean_120m_wind_speed",
+                hex_id=selected_hex
+            )
+            st.plotly_chart(ws_fig, key="hex_ws_1d_plot")
 
             # PV data plot
-            # st.markdown("#### PV GTI vs other US cells")
-            min_gti = wind_pv_df["mean_PV_GTI"].min()
-            max_gti = wind_pv_df["mean_PV_GTI"].max()
-            print(min_gti)
-            print(max_gti)
-            pv_fig = go.Figure()
-            pv_fig.add_trace(go.Scatter(
-                x=[min_gti, max_gti], y=[0,0],
-                mode='markers',
-                marker=dict(
-                    symbol="line-ns",
-                    size=20,
-                    line=dict(
-                        color="grey",
-                        width=3
-                    )
-                ),
-                name="US min, max values"
-            ))
-            pv_fig.add_trace(go.Scatter(
-                x=[wind_pv_df.iloc[selected_hex]["mean_PV_GTI"]],
-                y=[0,0],
-                mode='markers',
-                marker=dict(
-                    color='rgb(215, 94, 13)',
-                ),
-                marker_size=20,
-                name="Cell PV GTI"
-            ))
-            pv_fig.update_xaxes(
-                showgrid=True,
-                range=[1100, 2600],
-                ticks="inside",
-                # nticks=10,
-                # tick0=1, dtick=1
-                )
-            pv_fig.update_yaxes(
-                showgrid=False, 
-                zeroline=True,
-                zerolinecolor='grey',
-                zerolinewidth=3,
-                showticklabels=False)
-            pv_fig.update_layout(
-                height=225,
-                plot_bgcolor="rgb(26,28,36)"
-                )
-            st.plotly_chart(pv_fig, key="hex_pv")
+            pv_fig = create_1d_data_plot(
+                df=wind_pv_df,
+                data_col="mean_PV_GTI",
+                hex_id=selected_hex
+            )
+            st.plotly_chart(pv_fig, key="hex_pv_1d_plot")
+
         else:
             st.markdown(
                 """
