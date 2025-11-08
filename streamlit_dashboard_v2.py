@@ -548,7 +548,7 @@ with st.expander("2️⃣ Select capacities", expanded=True):
                 st.markdown("Demand / generation units are in MW")
                 st.dataframe(st.session_state.energy_result)
                 st.markdown("#### Cost and emissions data")
-                st.markdown("Costs: $k, Emissions: tCO2")
+                st.markdown("Cost units: $k, Emission units: tCO2")
                 df_costs = df_costs.rename(
                     columns={
                         "kgCO2": "tCO2",
