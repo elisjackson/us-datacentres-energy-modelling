@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Literal
 
 st.set_page_config(layout="wide")
-st.title("Data centre energy model")
+st.title("Off-grid data centre energy model")
 
 
 def energy_calcs(slider_vals_dict):
@@ -612,4 +612,46 @@ with st.expander("2️⃣ Select capacities", expanded=True):
                 st.markdown("### Hit 'Calculate' to view results")
 
 with st.expander("Methodology and assumptions"):
-    pass
+    st.markdown(
+        """
+        ### Map data
+        - **Wind speed data**: 123
+        - **Solar irradiance data**: 123
+
+        ### Energy model
+        A simple energy model is used to calculate the energy supply and demand for
+        the off-grid data centre, given the user's inputs for renewable capacities and battery storage.
+        On-site gas CCGT generation is assumed to kick in when no renewable generation is available.\n
+
+        - **Data centre demand**:
+          - Data centre demand is assumed to be constant at the selected capacity
+          - In reality there will be variation e.g. seasonally with ambient temperature
+        - **Wind generation**:
+          - Vestas V164-8.0 power curve used
+          - Typical Meteorological Year (TMY) weather from XXX used (this is not location specific within the US)
+          - Wind speed data is scaled to match the annual mean wind speed (from "Map data") at selected hex cell
+        - **PV generation**:
+          - [pvlib-python](https://pvlib-python.readthedocs.io/en/v0.11.2/user_guide/weather_data.html)
+        model used to calculate Solar PV generation
+          - There is no link between the solar irradiance data from "Map data" and the PV model.
+          pv-lib uses it's own TMY APIs to fetch data for the location.
+        - **BESS generation**: Simple BESS model is used with:
+          - Round trip efficiency: 95%
+          - Charges only from renewable generation
+          - BESS can charge to 100% State of Charge (SOC) and discharge to 0% SOC
+        - **Gas generation (CCGT)**:
+          - Gas fills the gap after wind, PV and BESS generation
+        has been subtracted from demand.
+          - CCGT efficiency assumed: 50%
+          - CCGT is assumed to be able to provide generation at a moment's notice
+          (i.e. zero cold start time). In reality 30-60 minutes may be required for a cold start.
+          - Similarly, CCGT is assumed to be able to shutdown instantly.
+          - CCGT capacity required is the maximum demand over the year
+          (no additional capacity margin is assumed).
+        - **Gas fuel and CAPEX, OPEX cost assumptions for CCGT, Solar PV, BESS, Wind**:
+        Sourced from [GNESTE](https://github.com/iain-staffell/GNESTE),
+        averaged across all 2020-2025 values for each technology / cost type
+        (for quick development)
+        - **Gas emissions assumed**: 202 kgCO2 per MWh of gas consumption
+        """
+    )
