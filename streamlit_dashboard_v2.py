@@ -49,6 +49,17 @@ def store_slider_vals():
         "bess_mw": st.session_state.bess_mw,
         "bess_mwh": st.session_state.bess_mwh,
     }
+    
+    # Validate BESS sliders: both must be 0 or both must be positive
+    bess_mw = st.session_state.bess_mw
+    bess_mwh = st.session_state.bess_mwh
+    
+    if (bess_mw == 0 and bess_mwh > 0) or (bess_mw > 0 and bess_mwh == 0):
+        st.session_state.bess_validation_error = True
+        return  # Stop calculation
+    else:
+        st.session_state.bess_validation_error = False
+    
     energy_calcs(st.session_state.slider_vals)  # pass the dictionary
 
 @st.cache_data
@@ -429,6 +440,11 @@ with st.expander("2️⃣ Select capacities", expanded=True):
             disabled=not st.session_state.last_clicked_hex,
             on_click=store_slider_vals  # store and call energy_calcs
         )
+    
+    # Display BESS validation error if present
+    if st.session_state.get("bess_validation_error", False):
+        st.error("⚠️ Both Battery capacity (MW) and Battery capacity (MWh) must be either both zero or both positive. Please adjust the values.")
+    
     # with st.form(key="results"):
     with st.container(border=True, key="results_container"):
         st.markdown("### Results")
