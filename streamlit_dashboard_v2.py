@@ -35,6 +35,7 @@ def energy_calcs(slider_vals_dict):
     st.session_state.energy_result, st.session_state.cost_result = solve(
         location=(coords["lat"], coords["long"], 100),
         mean_ws=11,
+        rename_cols_for_data_centre_application=True,
         **kwargs
         )
     st.session_state.cost_result = st.session_state.cost_result / 1000
@@ -407,14 +408,14 @@ with st.expander("1️⃣ Select location", expanded=True):
 with st.expander("2️⃣ Select capacities", expanded=True):
     with st.form(key="select_capacities_form"):
         st.markdown("### Inputs")
-        st.slider("Data centre capacity (GW)", 0, 10, key="data_centre")
-        st.slider("Wind capacity (GW)", 0, 10, key="wind")
-        st.slider("Solar PV capacity (GW)", 0, 10, key="pv")
+        st.slider("Data centre capacity (MW)", 0, 100, key="data_centre")
+        st.slider("Wind capacity (MW)", 0, 100, key="wind")
+        st.slider("Solar PV capacity (MW)", 0, 100, key="pv")
         bess1, bess2 = st.columns(2)
         with bess1:
-            st.slider("Battery capacity (MW)", 0, 10, key="bess_mw")
+            st.slider("Battery capacity (MW)", 0, 100, key="bess_mw")
         with bess2:
-            st.slider("Battery capacity (MWh)", 0, 10, key="bess_mwh")
+            st.slider("Battery capacity (MWh)", 0, 100, key="bess_mwh")
 
         if st.session_state.energy_result.empty:
             empty_results = True
@@ -438,7 +439,7 @@ with st.expander("2️⃣ Select capacities", expanded=True):
 
             with total_costs_col:
                 with st.container(border = True):
-                    lifetime_cost_total = round(st.session_state.cost_result["lifetime_cost"].sum())
+                    lifetime_cost_total = round(st.session_state.cost_result["Lifetime cost"].sum())
                     st.markdown(
                         f"<h3 style='text-align: center;'>Lifetime cost: ${lifetime_cost_total:,}k</h3>",
                         unsafe_allow_html=True
@@ -447,7 +448,7 @@ with st.expander("2️⃣ Select capacities", expanded=True):
             with total_emissions_col:
                 with st.container(border = True):
                     print(st.session_state.cost_result.columns)
-                    lifetime_co2_total = round(st.session_state.cost_result["lifetime_kgCO2"].sum())
+                    lifetime_co2_total = round(st.session_state.cost_result["Lifetime kgCO2"].sum())
                     st.markdown(
                         f"<h3 style='text-align: center;'>Lifetime emissions: {lifetime_co2_total:,} tCO2</h3>",
                         unsafe_allow_html=True
@@ -460,11 +461,11 @@ with st.expander("2️⃣ Select capacities", expanded=True):
 
                 df = st.session_state.energy_result
                 cols_to_plot = [
-                    "demand",
-                    "farm_wind_power",
-                    "PV_AC",
-                    "bess_power",
-                    "gas_demand"
+                    "Data centre demand",
+                    "Wind generation",
+                    "Solar PV generation",
+                    "BESS power",
+                    "Gas consumption"
                     ]
                 df = df[["datetime"] + cols_to_plot]
 
@@ -474,7 +475,7 @@ with st.expander("2️⃣ Select capacities", expanded=True):
                     title="Modelled power flows")
                 fig_ts.update_layout(
                     xaxis_title="Date",
-                    yaxis_title="Value",
+                    yaxis_title="Power (MW)",
                     template="plotly_white"
                 )
                 # Enable the range slider
@@ -499,7 +500,7 @@ with st.expander("2️⃣ Select capacities", expanded=True):
                     annual_sums = df[cols_to_plot].sum().reset_index()
                     annual_sums = annual_sums.round()
                     annual_sums.columns = ["variable", "total"]
-                    show_ad = ["farm_wind_power", "PV_AC", "gas_demand"]
+                    show_ad = ["Wind generation", "Solar PV generation", "Gas consumption"]
                     annual_sums = annual_sums[annual_sums["variable"].isin(show_ad)]
                     fig_ad = px.bar(
                         annual_sums,
@@ -508,8 +509,11 @@ with st.expander("2️⃣ Select capacities", expanded=True):
                         color="variable",
                         text="total",
                         color_discrete_map=color_map,
-                        labels={"x": "End Use", "y": "Annual Energy Demand (MWh)"},
-                        title="Annual Energy Demand by End Use"
+                        labels={
+                            "variable": "Energy source",
+                            "total": "Annual energy genertaion / consumption (MWh)"
+                            },
+                        title="Annual energy genertaion / consumption"
                     )
                     fig_ad.update_traces(marker_line_width=0)
                     fig_ad.update_layout(template="plotly_white")
@@ -523,8 +527,8 @@ with st.expander("2️⃣ Select capacities", expanded=True):
                     # Melt into long format
                     df_costs_long = df_costs.melt(
                         id_vars="tech",
-                        value_vars=["capex", "opex_20yr", "fuel_cost_20yr"],
-                        var_name="cost_type",
+                        value_vars=["CAPEX", "20yr OPEX", "20yr fuel cost"],
+                        var_name="Cost type",
                         value_name="cost"
                         )
                     # stacked bar chart
@@ -532,9 +536,13 @@ with st.expander("2️⃣ Select capacities", expanded=True):
                         df_costs_long,
                         x="tech",
                         y="cost",
-                        color="cost_type",
-                        title="Lifetime Cost by Technology",
+                        color="Cost type",
+                        title="Lifetime cost by technology",
                         text="cost",
+                        labels={
+                            "tech": "Technology",
+                            "cost": "USD (thousands)",
+                        },
                         color_discrete_sequence=px.colors.qualitative.Safe
                         )
                     st.plotly_chart(fig_costs)
@@ -552,7 +560,7 @@ with st.expander("2️⃣ Select capacities", expanded=True):
                 df_costs = df_costs.rename(
                     columns={
                         "kgCO2": "tCO2",
-                        "lifetime_kgCO2": "tCO2_20yr"
+                        "Lifetime kgCO2": "20yr tCO2"
                     }
                     )
                 st.dataframe(df_costs)

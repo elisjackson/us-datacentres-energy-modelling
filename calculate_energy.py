@@ -16,7 +16,8 @@ def solve(
     bess_mwh: float,
     mean_ws: float = 12,
     mean_ghi: float = 1900,
-    location: tuple[int] = (52.5, 13.4, 34)
+    location: tuple[int] = (52.5, 13.4, 34),
+    rename_cols_for_data_centre_application: bool = False
 ):
     """
     location: latitude, longitude, altitude. co-ordinates in WGS84
@@ -91,55 +92,64 @@ def solve(
 
     # get GNESTE assumptions
     df_GNESTE = pd.concat([
-        get_GNESTE_assumptions(energy_tech="gas"),
-        get_GNESTE_assumptions(energy_tech="bess"),
-        get_GNESTE_assumptions(energy_tech="wind"),
-        get_GNESTE_assumptions(energy_tech="pv")
+        get_GNESTE_assumptions(energy_tech="Gas CCGT"),
+        get_GNESTE_assumptions(energy_tech="BESS"),
+        get_GNESTE_assumptions(energy_tech="Wind"),
+        get_GNESTE_assumptions(energy_tech="Solar PV")
     ]).set_index("energy_tech")
 
     # calculate CAPEX costs
     gas_mw = df["gas_demand"].max()
     capex = {
-        "gas": df_GNESTE.loc["gas", "capex"] * gas_mw,
-        "bess": df_GNESTE.loc["bess", "capex"] * bess_mw,
-        "wind": df_GNESTE.loc["wind", "capex"] * wind_mw,
-        "pv": df_GNESTE.loc["pv", "capex"] * pv_mw,
+        "Gas CCGT": df_GNESTE.loc["Gas CCGT", "CAPEX"] * gas_mw,
+        "BESS": df_GNESTE.loc["BESS", "CAPEX"] * bess_mw,
+        "Wind": df_GNESTE.loc["Wind", "CAPEX"] * wind_mw,
+        "Solar PV": df_GNESTE.loc["Solar PV", "CAPEX"] * pv_mw,
     }
 
     # calculate OPEX costs
     opex = {
-        "gas": df_GNESTE.loc["gas", "opex"] * gas_mw,
-        "bess": df_GNESTE.loc["bess", "opex"] * bess_mw,
-        "wind": df_GNESTE.loc["wind", "opex"] * wind_mw,
-        "pv": df_GNESTE.loc["pv", "opex"] * pv_mw,
+        "Gas CCGT": df_GNESTE.loc["Gas CCGT", "OPEX"] * gas_mw,
+        "BESS": df_GNESTE.loc["BESS", "OPEX"] * bess_mw,
+        "Wind": df_GNESTE.loc["Wind", "OPEX"] * wind_mw,
+        "Solar PV": df_GNESTE.loc["Solar PV", "OPEX"] * pv_mw,
     }
 
     # calculate gas energy costs
     gas_fuel_cost = {
-        "gas": df_GNESTE.loc["gas", "fuel_price"] * df["gas_demand"].sum()
+        "Gas CCGT": df_GNESTE.loc["Gas CCGT", "fuel_price"] * df["gas_demand"].sum()
     }
 
     # Combine into one DataFrame
     df_costs_emissions = pd.DataFrame({
-        "capex": capex,
-        "opex": opex,
-        "fuel_cost": gas_fuel_cost
+        "CAPEX": capex,
+        "OPEX": opex,
+        "Fuel cost": gas_fuel_cost
     }).fillna(0)
 
     # sum lifetime costs, assume 20 year lifetime
     lifetime_assumed = 20
-    df_costs_emissions["opex_20yr"] = df_costs_emissions["opex"] * lifetime_assumed
-    df_costs_emissions["fuel_cost_20yr"] = df_costs_emissions["fuel_cost"] * lifetime_assumed
+    df_costs_emissions["20yr OPEX"] = df_costs_emissions["OPEX"] * lifetime_assumed
+    df_costs_emissions["20yr fuel cost"] = df_costs_emissions["Fuel cost"] * lifetime_assumed
 
-    df_costs_emissions["lifetime_cost"] = (
-        df_costs_emissions["capex"]
-        + df_costs_emissions["opex_20yr"]
-        + df_costs_emissions["fuel_cost_20yr"]
+    df_costs_emissions["Lifetime cost"] = (
+        df_costs_emissions["CAPEX"]
+        + df_costs_emissions["20yr OPEX"]
+        + df_costs_emissions["20yr fuel cost"]
         )
 
-    df_costs_emissions.loc["gas", "kgCO2"] = 202 * df["gas_demand"].sum()
-    df_costs_emissions["lifetime_kgCO2"] = lifetime_assumed * df_costs_emissions["kgCO2"]
+    df_costs_emissions.loc["Gas CCGT", "kgCO2"] = 202 * df["gas_demand"].sum()
+    df_costs_emissions["Lifetime kgCO2"] = lifetime_assumed * df_costs_emissions["kgCO2"]
     df_costs_emissions = df_costs_emissions.fillna(0)
+
+    if rename_cols_for_data_centre_application:
+        df = df.rename(columns={
+            "demand": "Data centre demand",
+            "farm_wind_power": "Wind generation",
+            "PV_AC": "Solar PV generation",
+            "gas_demand": "Gas consumption",
+            "bess_power": "BESS power",
+        })
 
     # return results
     print(f"Calculated energy in {round(time.time() - t0, 3)}s")
@@ -198,11 +208,6 @@ def calculate_battery_profile(
     
     return df
 
-def calculate_wind_power():
-    pass
-
-def calculate_pv_power():
-    pass
 
 def get_weather_file() -> pd.DataFrame:
     """
@@ -274,17 +279,17 @@ def get_GNESTE_assumptions(energy_tech: str) -> pd.DataFrame:
     Read mean GNESTE data values from source
 
     Returns pd.DataFrame with columns
-        "capex" (USD/MW)
-        "opex" (USD/MW)
+        "CAPEX" (USD/MW)
+        "OPEX" (USD/MW)
         "fuel_price" (USD/MWh)
     """
-    if energy_tech == "gas":
+    if energy_tech == "Gas CCGT":
         file = Path("GNESTE_assumptions") / "GNESTE_Gas_Power.csv"
-    elif energy_tech == "bess":
+    elif energy_tech == "BESS":
         file = Path("GNESTE_assumptions") / "GNESTE_Battery_Storage.csv"
-    elif energy_tech == "wind":
+    elif energy_tech == "Wind":
         file = Path("GNESTE_assumptions") / "GNESTE_Wind_Power.csv"
-    elif energy_tech == "pv":
+    elif energy_tech == "Solar PV":
         file = Path("GNESTE_assumptions") / "GNESTE_Solar_Power.csv"
     else:
         raise ValueError("Type not supported")
@@ -308,7 +313,7 @@ def get_GNESTE_assumptions(energy_tech: str) -> pd.DataFrame:
 
     # opex (USD/kW)
     opex = df[
-        ((df["Variable"] == "Fixed O&M") if energy_tech != "pv" else (df["Variable"] == "Total O&M"))
+        ((df["Variable"] == "Fixed O&M") if energy_tech != "Solar PV" else (df["Variable"] == "Total O&M"))
         & (df["Unit"] == "USD/kW/yr")
         ]
     opex = opex[years]
@@ -324,8 +329,8 @@ def get_GNESTE_assumptions(energy_tech: str) -> pd.DataFrame:
 
     results_df = pd.DataFrame({
         "energy_tech": [energy_tech],
-        "capex": [capex],
-        "opex": [opex],
+        "CAPEX": [capex],
+        "OPEX": [opex],
         "fuel_price": [fuel_price]
     })
 
@@ -338,4 +343,5 @@ if __name__ == "__main__":
         pv_mw=10,
         bess_mw=2,
         bess_mwh=5,
+        rename_cols_for_data_centre_application=True
     )
