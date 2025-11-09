@@ -88,7 +88,8 @@ def solve(
     df["demand_after_gen_plus_pv"] = (
         df["demand"] - df["gen_plus_pv"]
     ).clip(lower=0)
-    df["gas_demand"] = df["demand_after_gen_plus_pv"] / 0.9
+    # CCGT efficiency assumed: 50%
+    df["gas_demand"] = df["demand_after_gen_plus_pv"] / 0.5
 
     # get GNESTE assumptions
     df_GNESTE = pd.concat([
