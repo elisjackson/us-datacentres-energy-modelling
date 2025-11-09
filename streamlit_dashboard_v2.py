@@ -31,13 +31,25 @@ def energy_calcs(slider_vals_dict):
         "bess_mwh": "bess_mwh",
     }
     kwargs = {arg_map[k]: v for k, v in slider_vals_dict.items()}
-
-    st.session_state.energy_result, st.session_state.cost_result = solve(
-        location=(coords["lat"], coords["long"], 100),
-        mean_ws=11,
-        rename_cols_for_data_centre_application=True,
-        **kwargs
-        )
+    try:
+        st.session_state.energy_result, st.session_state.cost_result = solve(
+            location=(coords["lat"], coords["long"], 100),
+            mean_ws=11,
+            rename_cols_for_data_centre_application=True,
+            **kwargs
+            )
+    except Exception as e:
+        # Check if it's a network/DNS error
+        if "ConnectionError" in type(e).__name__:
+            st.error(
+                "🌐 **Connection Error**\n\n"
+                "We need to fetch some meteoroligcal data. Please check your internet connection and try again."
+            )
+        else:
+            st.error(
+                f"⚠️ **Oops! We got an error:**\n\n"
+                f"{e}"
+            )
     st.session_state.cost_result = st.session_state.cost_result / 1000
 
 def store_slider_vals():
