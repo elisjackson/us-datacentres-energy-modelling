@@ -79,11 +79,11 @@ def get_colormap(layer_type: Literal["wind", "pv"]):
     if layer_type == "wind":
         vals = get_json_feature_range(wind_pv_dict, "mean_120m_wind_speed")
         colormap = linear.YlGn_09.scale(vals[0], vals[1])
-        colormap.caption = "Wind speed (120m)"
+        colormap.caption = "Wind speed (120m) (m/s)"
     elif layer_type == "pv":
         vals = get_json_feature_range(wind_pv_dict, "mean_PV_GTI")
         colormap = linear.YlOrBr_05.scale(vals[0], vals[1])
-        colormap.caption = "Global Horizontal Irradiance (W/m2)"
+        colormap.caption = "Global Tilted Irradiaton (GTI) at optimum tilt (kWh/m2/year)"
     else:
         return ValueError(f"{layer_type} not supported")
     return colormap
@@ -127,14 +127,14 @@ def create_colorbar_legend(colormap, num_ticks: int = 5) -> str:
 
 def get_folium_geojson(wind_pv_data, layer_type: str) -> folium.GeoJson:
     print(f"Preparing {layer_type} folium.GeoJson")
-    cmap = get_colormap(layer_type="wind" if layer_type == "Wind speed" else "pv")
+    cmap = get_colormap(layer_type="wind" if "wind" in layer_type else "pv")
     popup = folium.GeoJsonPopup(
         fields=["hex", "mean_120m_wind_speed", "mean_PV_GTI"],
-        aliases=["Cell ID", "120m wind speed (m/s)", "GHI (W/m2)"],
+        aliases=["Cell ID", "120m wind speed (m/s)", "GTI (kWh/m2/yr)"],
         localize=True,
         labels=True,
     )
-    if layer_type == "Wind speed":
+    if layer_type == "120m wind speed":
         return folium.GeoJson(
             wind_pv_data,
             name="state_wind_speeds",
@@ -153,7 +153,7 @@ def get_folium_geojson(wind_pv_data, layer_type: str) -> folium.GeoJson:
             },
             popup=popup,
         )
-    elif layer_type == "Global Horizontal Irradiance (GHI)":
+    elif layer_type == "Global Tilted Irradiaton (GTI) at optimum tilt":
         return folium.GeoJson(
             wind_pv_data,
             name="state_gtis",
@@ -172,7 +172,10 @@ def get_folium_geojson(wind_pv_data, layer_type: str) -> folium.GeoJson:
 
 @st.cache_data
 def load_geojson_data() -> tuple[dict, pd.DataFrame]:
-    """Load geojson data from hex_cell_outputs folder."""
+    """Load geojson data from hex_cell_outputs folder.
+    
+    Returns dictionary (representing JSON) and pandas DataFrame
+    """
     print("Loading geojson data")
     fpath = Path("hex_cell_outputs") / "all_hex_mean_wind_and_PV_GTI.geojson"
     with open(fpath) as f:
@@ -325,14 +328,17 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-@st.fragment
+
 def select_location_expander():
+    """ Expander step 1 of dashboard
+    """
+
     map_col, graphs_col = st.columns(2)
     with map_col:
 
         layer_select = st.radio(
             "Map layer",
-            options=["Wind speed", "Global Horizontal Irradiance (GHI)"],
+            options=["120m wind speed", "Global Tilted Irradiaton (GTI) at optimum tilt"],
             key="layer_radio",
             horizontal=True,
         )
@@ -352,7 +358,7 @@ def select_location_expander():
             )
             # Build legend
             cmap = get_colormap(
-                layer_type="wind" if layer_select == "Wind speed" else "pv"
+                layer_type="wind" if "wind" in layer_select else "pv"
             )
             legend_html = create_colorbar_legend(cmap, num_ticks=5)
             st.markdown(legend_html, unsafe_allow_html=True)
