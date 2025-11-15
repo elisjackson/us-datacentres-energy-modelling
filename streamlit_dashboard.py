@@ -127,7 +127,7 @@ def create_colorbar_legend(colormap, num_ticks: int = 5) -> str:
 
 def get_folium_geojson(wind_pv_data, layer_type: str) -> folium.GeoJson:
     print(f"Preparing {layer_type} folium.GeoJson")
-    cmap = get_colormap(layer_type="wind" if layer_select == "Wind speed" else "pv")
+    cmap = get_colormap(layer_type="wind" if layer_type == "Wind speed" else "pv")
     popup = folium.GeoJsonPopup(
         fields=["hex", "mean_120m_wind_speed", "mean_PV_GTI"],
         aliases=["Cell ID", "120m wind speed (m/s)", "GHI (W/m2)"],
@@ -325,7 +325,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-with st.expander("1️⃣ Select location", expanded=True):
+@st.fragment
+def select_location_expander():
     map_col, graphs_col = st.columns(2)
     with map_col:
 
@@ -415,8 +416,11 @@ with st.expander("1️⃣ Select location", expanded=True):
                 unsafe_allow_html=True,
             )
 
+with st.expander("1️⃣ Select location", expanded=True):
+    select_location_expander()
 
-with st.expander("2️⃣ Select capacities", expanded=True):
+@st.fragment
+def select_capacities_expander():
     with st.form(key="select_capacities_form"):
         st.markdown("### Inputs")
         st.slider("Data centre capacity (MW)", 0, 100, key="data_centre")
@@ -610,6 +614,9 @@ with st.expander("2️⃣ Select capacities", expanded=True):
                 st.dataframe(df_costs)
             else:
                 st.markdown("### Hit 'Calculate' to view results")
+
+with st.expander("2️⃣ Select capacities", expanded=True):
+    select_capacities_expander()
 
 with st.expander("Methodology and assumptions"):
     st.markdown(
