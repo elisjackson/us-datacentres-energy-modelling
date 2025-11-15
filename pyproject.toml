@@ -1,0 +1,18 @@
+[project]
+name = "us-datacentres"
+version = "0.1.0"
+description = "Off grid data centre model"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "branca>=0.8.2",
+    "folium>=0.20.0",
+    "geopandas>=1.1.1",
+    "mapclassify>=2.10.0",
+    "matplotlib>=3.10.7",
+    "plotly>=6.4.0",
+    "pvlib>=0.13.1",
+    "rasterio>=1.4.3",
+    "streamlit>=1.51.0",
+    "streamlit-folium>=0.25.3",
+]
