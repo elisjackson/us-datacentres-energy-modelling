@@ -178,7 +178,7 @@ def load_geojson_data() -> tuple[dict, pd.DataFrame]:
     Returns dictionary (representing JSON) and pandas DataFrame
     """
     print("Loading geojson data")
-    fpath = Path("inputs") / "all_hex_mean_wind_and_PV_GTI.geojson"
+    fpath = Path("src") / "hex_cell_data" / "all_hex_mean_wind_and_PV_GTI.geojson"
     with open(fpath) as f:
         data = json.load(f)
     df = gpd.read_file(fpath).drop(columns="geometry").set_index("hex")
@@ -188,7 +188,7 @@ def load_geojson_data() -> tuple[dict, pd.DataFrame]:
 @st.cache_data
 def load_state_hex_lookup() -> dict[str, set]:
     print("Loading state-hex lookup")
-    fpath = Path("inputs") / "states_hex_lookup.json"
+    fpath = Path("src") / "hex_cell_data" / "states_hex_lookup.json"
     with open(fpath) as f:
         data = json.load(f)
     # convert list to set for faster searching

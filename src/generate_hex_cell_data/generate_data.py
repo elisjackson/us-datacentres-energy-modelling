@@ -130,6 +130,8 @@ def download_file(url, local_path):
 
 def main():
     """Main script execution."""
+
+    # get shapefile of US State boundaries
     states_path = Path("inputs") / "states_shapefile" / "ne_110m_admin_1_states_provinces.shp"
     us_states = gpd.read_file(states_path)
     us_states = us_states.to_crs("ESRI:102009")
@@ -148,16 +150,21 @@ def main():
     wind_120_url = (
         "https://storage.googleapis.com/us-energy-data/wtk_conus_120m_mean_masked.tif"
     )
-    local_wind_path = r"generate_hex_cell_data\downloads\wtk_conus_120m_mean_masked.tif"
+    # local_wind_path = r"generate_hex_cell_data\downloads\wtk_conus_120m_mean_masked.tif"
+    local_wind_path = (
+        Path("src") / "generate_hex_cell_data" / "downloads" / "wtk_conus_120m_mean_masked.tif"
+    )
     download_file(wind_120_url, local_wind_path)
 
     pv_gti_url = "https://storage.googleapis.com/us-energy-data/GTI.tif"
-    local_pv_gti_path = r"generate_hex_cell_data\downloads\GTI.tif"
+    # local_pv_gti_path = r"generate_hex_cell_data\downloads\GTI.tif"
+    local_pv_gti_path = (
+        Path("src") / "generate_hex_cell_data" / "downloads" / "GTI.tif"
+    )    
     download_file(pv_gti_url, local_pv_gti_path)
 
     # Process wind data
     logger.info("Processing wind speed data")
-    # wind_120_path = r"https://storage.googleapis.com/us-energy-data/wtk_conus_120m_mean_masked.tif"
     hex_wind_gdf = process_raster_data(
         raster_path=local_wind_path,
         hex_gdf=usa_hex,
@@ -179,23 +186,23 @@ def main():
     hex_wind_gdf["mean_120m_wind_speed"] = hex_wind_gdf["mean_120m_wind_speed"].round(2)
     hex_gti_gdf["mean_PV_GTI"] = hex_gti_gdf["mean_PV_GTI"].round(0).astype("Int64")
 
-    outputs_dir = "hex_cell_outputs"
+    outputs_dir = os.path.join("src", "hex_cell_data")
     if not os.path.exists(outputs_dir):
         os.mkdir(outputs_dir)
 
-    # Save wind HTML map
-    custom_explore_gdf(
-        hex_wind_gdf,
-        os.path.join(outputs_dir, "wind_map_all_hex.html"),
-        colour_col="mean_120m_wind_speed",
-    )
+    # Save wind HTML map - debugging only
+    # custom_explore_gdf(
+    #     hex_wind_gdf,
+    #     os.path.join(outputs_dir, "wind_map_all_hex.html"),
+    #     colour_col="mean_120m_wind_speed",
+    # )
 
-    # Save PV HTML map
-    custom_explore_gdf(
-        hex_gti_gdf,
-        os.path.join(outputs_dir, "gti_map_all_hex.html"),
-        colour_col="mean_PV_GTI",
-    )
+    # Save PV HTML map - debugging only
+    # custom_explore_gdf(
+    #     hex_gti_gdf,
+    #     os.path.join(outputs_dir, "gti_map_all_hex.html"),
+    #     colour_col="mean_PV_GTI",
+    # )
 
     # merge wnd and pv data on hex cell ids
     hex_wind_pv_gdf = hex_wind_gdf.merge(
@@ -213,11 +220,13 @@ def main():
         json.dump(state_hex_lookup, f, indent=2, sort_keys=True)
 
     # Convert to EPSG:4326 and save all-US hex data
-    hex_wind_gdf = hex_wind_gdf.to_crs(epsg=4326)
-    hex_wind_gdf.to_file(os.path.join(outputs_dir, "all_hex_mean_wind_speeds.geojson"))
 
-    hex_gti_gdf = hex_gti_gdf.to_crs(epsg=4326)
-    hex_gti_gdf.to_file(os.path.join(outputs_dir, "all_hex_mean_PV_GTI.geojson"))
+    # debug outputs only
+    # hex_wind_gdf = hex_wind_gdf.to_crs(epsg=4326)
+    # hex_wind_gdf.to_file(os.path.join(outputs_dir, "all_hex_mean_wind_speeds.geojson"))
+    # debug outputs only
+    # hex_gti_gdf = hex_gti_gdf.to_crs(epsg=4326)
+    # hex_gti_gdf.to_file(os.path.join(outputs_dir, "all_hex_mean_PV_GTI.geojson"))
 
     hex_wind_pv_gdf = hex_wind_pv_gdf.to_crs(epsg=4326)
     hex_wind_pv_gdf.to_file(
