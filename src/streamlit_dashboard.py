@@ -9,8 +9,15 @@ import json
 import plotly.graph_objects as go
 from pathlib import Path
 from typing import Literal
+import logging
 
 from energy_model.calculate_energy import solve
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 st.set_page_config(layout="wide")
 st.title("Off-grid data centre energy model")
@@ -76,7 +83,7 @@ def store_slider_vals():
 @st.cache_data
 def get_colormap(layer_type: Literal["wind", "pv"]):
     """Get colormap for given layer type."""
-    print(f"Building {layer_type} colormap")
+    logger.info(f"Building {layer_type} colormap")
     if layer_type == "wind":
         vals = get_json_feature_range(wind_pv_dict, "mean_120m_wind_speed")
         colormap = linear.YlGn_09.scale(vals[0], vals[1])
@@ -127,7 +134,7 @@ def create_colorbar_legend(colormap, num_ticks: int = 5) -> str:
 
 
 def get_folium_geojson(wind_pv_data, layer_type: str) -> folium.GeoJson:
-    print(f"Preparing {layer_type} folium.GeoJson")
+    logger.info(f"Preparing {layer_type} folium.GeoJson")
     cmap = get_colormap(layer_type="wind" if "wind" in layer_type else "pv")
     popup = folium.GeoJsonPopup(
         fields=["hex", "mean_120m_wind_speed", "mean_PV_GTI"],
@@ -177,7 +184,7 @@ def load_geojson_data() -> tuple[dict, pd.DataFrame]:
     
     Returns dictionary (representing JSON) and pandas DataFrame
     """
-    print("Loading geojson data")
+    logger.info("Loading geojson data")
     fpath = Path("src") / "hex_cell_data" / "all_hex_mean_wind_and_PV_GTI.geojson"
     with open(fpath) as f:
         data = json.load(f)
@@ -187,7 +194,7 @@ def load_geojson_data() -> tuple[dict, pd.DataFrame]:
 
 @st.cache_data
 def load_state_hex_lookup() -> dict[str, set]:
-    print("Loading state-hex lookup")
+    logger.info("Loading state-hex lookup")
     fpath = Path("src") / "hex_cell_data" / "states_hex_lookup.json"
     with open(fpath) as f:
         data = json.load(f)
@@ -231,8 +238,8 @@ def get_json_feature_range(geojson: dict, property: str) -> list[int]:
 def get_hex_lat_long(target_hex: int) -> dict[str, float]:
     geojson_crs = wind_pv_dict["crs"]["properties"]["name"]
     if geojson_crs[-5] != "CRS84":
-        print(geojson_crs[-5])
-        print("WARNING - expecting CRS84")
+        logger.info(geojson_crs[-5])
+        logger.warning("WARNING - expecting CRS84")
     features = wind_pv_dict["features"]
     hex_feature = [f for f in features if f["properties"]["hex"] == target_hex][0]
     co_ords_crs84 = hex_feature["geometry"]["coordinates"][0][0]
@@ -344,7 +351,7 @@ def select_location_expander():
             horizontal=True,
         )
 
-        print("Loading map")
+        logger.info("Loading map")
         map_params = get_map_starting_parameters()
         m = folium.Map(
             location=[map_params["y"], map_params["x"]], zoom_start=map_params["zoom"]
@@ -478,7 +485,6 @@ def select_capacities_expander():
 
             with total_emissions_col:
                 with st.container(border=True):
-                    print(st.session_state.cost_result.columns)
                     lifetime_co2_total = round(
                         st.session_state.cost_result["Lifetime kgCO2"].sum()
                     )
