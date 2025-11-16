@@ -188,7 +188,7 @@ def load_geojson_data() -> tuple[dict, pd.DataFrame]:
 @st.cache_data
 def load_state_hex_lookup() -> dict[str, set]:
     print("Loading state-hex lookup")
-    fpath = Path("hex_cell_outputs") / "states_hex_lookup.json"
+    fpath = Path("inputs") / "states_hex_lookup.json"
     with open(fpath) as f:
         data = json.load(f)
     # convert list to set for faster searching
