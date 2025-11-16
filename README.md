@@ -6,8 +6,8 @@ Visit my GitHub pages: [https://elisjackson.github.io/](elisjackson.github.io)
 
 # Installation (using uv)
 
-`uv venv`
-`uv sync`
+1. `uv venv`
+2. `uv sync`
 
 # Run the dashboard (Streamlit app)
 
