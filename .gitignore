@@ -1,5 +1,6 @@
 *.html
+*.egg-info
 .venv/*
 __pycache__*
 debug_outputs*
-generate_hex_cell_data/downloads/*
+src/generate_hex_cell_data/downloads/*

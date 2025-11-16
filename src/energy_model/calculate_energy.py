@@ -2,8 +2,9 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
 import time
-import pv_model
 from pathlib import Path
+
+import energy_model.pv_model as pv_model
 
 def custom_round(x, base=5):
     return base * round(float(x)/base)
@@ -285,13 +286,13 @@ def get_GNESTE_assumptions(energy_tech: str) -> pd.DataFrame:
         "fuel_price" (USD/MWh)
     """
     if energy_tech == "Gas CCGT":
-        file = Path("GNESTE_assumptions") / "GNESTE_Gas_Power.csv"
+        file = Path("inputs") / "GNESTE_assumptions" / "GNESTE_Gas_Power.csv"
     elif energy_tech == "BESS":
-        file = Path("GNESTE_assumptions") / "GNESTE_Battery_Storage.csv"
+        file = Path("inputs") / "GNESTE_assumptions" / "GNESTE_Battery_Storage.csv"
     elif energy_tech == "Wind":
-        file = Path("GNESTE_assumptions") / "GNESTE_Wind_Power.csv"
+        file = Path("inputs") / "GNESTE_assumptions" / "GNESTE_Wind_Power.csv"
     elif energy_tech == "Solar PV":
-        file = Path("GNESTE_assumptions") / "GNESTE_Solar_Power.csv"
+        file = Path("inputs") / "GNESTE_assumptions" / "GNESTE_Solar_Power.csv"
     else:
         raise ValueError("Type not supported")
 

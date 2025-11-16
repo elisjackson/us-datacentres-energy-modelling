@@ -7,9 +7,10 @@ from streamlit_folium import st_folium
 import pandas as pd
 import json
 import plotly.graph_objects as go
-from calculate_energy import solve
 from pathlib import Path
 from typing import Literal
+
+from energy_model.calculate_energy import solve
 
 st.set_page_config(layout="wide")
 st.title("Off-grid data centre energy model")
@@ -177,7 +178,7 @@ def load_geojson_data() -> tuple[dict, pd.DataFrame]:
     Returns dictionary (representing JSON) and pandas DataFrame
     """
     print("Loading geojson data")
-    fpath = Path("hex_cell_outputs") / "all_hex_mean_wind_and_PV_GTI.geojson"
+    fpath = Path("inputs") / "all_hex_mean_wind_and_PV_GTI.geojson"
     with open(fpath) as f:
         data = json.load(f)
     df = gpd.read_file(fpath).drop(columns="geometry").set_index("hex")
@@ -253,7 +254,7 @@ def create_1d_data_plot(df: pd.DataFrame, data_col: str, hex_id: int):
         x_range = [2, 11]  # TODO - make dynamic
     elif data_col == "mean_PV_GTI":
         color = "rgb(215, 94, 13)"
-        layer_name = "Cell PV GHI (W/m2)"
+        layer_name = "Cell PV GTI (kWh/m2/yr)"
         x_range = [1100, 2600]  # TODO - make dynamic
     else:
         raise ValueError(f"{data_col} not supported")
@@ -628,8 +629,13 @@ with st.expander("Methodology and assumptions"):
     st.markdown(
         """
         ### Map data
-        - **Wind speed data**: 123
-        - **Solar irradiance data**: 123
+        - **Wind speed data**:
+        National Renewable Energy Laboratory -
+        Wind Integration National Dataset (WIND) Toolkit, Multi-year Annual Average
+
+        - **Solar irradiance data**:
+        [globalsolaratlas.info](https://globalsolaratlas.info/) Global Solar Atlas 2.0 -
+        Longterm yearly average of global irradiation at optimum tilt
 
         ### Energy model
         A simple energy model is used to calculate the energy supply and demand for
@@ -638,11 +644,13 @@ with st.expander("Methodology and assumptions"):
 
         - **Data centre demand**:
           - Data centre demand is assumed to be constant at the selected capacity
-          - In reality there will be variation e.g. seasonally with ambient temperature
+            - In reality there will be variation e.g. seasonally with ambient temperature (affecting cooling demands),
+            and depending on server workload.
         - **Wind generation**:
-          - Vestas V164-8.0 power curve used
-          - Typical Meteorological Year (TMY) weather from XXX used (this is not location specific within the US)
-          - Wind speed data is scaled to match the annual mean wind speed (from "Map data") at selected hex cell
+          - **Weather file:** Typical Meteorological Year (TMY) weather from [NREL](https://nsrdb.nrel.gov/data-viewer) -
+          USA & Americas - Typical Meteorological Year - tmy-2024
+          - Wind speed data is scaled to match the annual mean wind speed (from "Map data") at the selected hex cell
+          - Power calculated using Vestas V164-8.0 power curve
         - **PV generation**:
           - [pvlib-python](https://pvlib-python.readthedocs.io/en/v0.11.2/user_guide/weather_data.html)
         model used to calculate Solar PV generation

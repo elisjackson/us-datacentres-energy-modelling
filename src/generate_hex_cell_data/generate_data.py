@@ -10,6 +10,7 @@ import rasterio
 from rasterio.mask import mask
 from shapely.geometry import Polygon
 import requests
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -114,6 +115,8 @@ def process_raster_data(raster_path, hex_gdf, value_column_name):
 
 
 def download_file(url, local_path):
+    """ Download file for local processing
+    """
     logger.info(f"Downloading {url}")
     os.makedirs(os.path.dirname(local_path), exist_ok=True)
     response = requests.get(url, stream=True)
@@ -127,9 +130,7 @@ def download_file(url, local_path):
 
 def main():
     """Main script execution."""
-    states_path = (
-        r"generate_hex_cell_data\states_shapefile\ne_110m_admin_1_states_provinces.shp"
-    )
+    states_path = Path("inputs") / "states_shapefile" / "ne_110m_admin_1_states_provinces.shp"
     us_states = gpd.read_file(states_path)
     us_states = us_states.to_crs("ESRI:102009")
 
