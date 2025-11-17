@@ -504,7 +504,7 @@ def select_capacities_expander():
                     "Wind generation",
                     "Solar PV generation",
                     "BESS power",
-                    "Gas consumption",
+                    "Gas generation",
                 ]
                 df = df[["datetime"] + cols_to_plot]
 
@@ -557,17 +557,19 @@ def select_capacities_expander():
 
                 with annual_energy_col:
                     # Annual energy plot
-                    annual_sums = df[cols_to_plot].sum().reset_index()
-                    annual_sums = annual_sums.round()
-                    annual_sums.columns = ["variable", "total"]
-                    show_ad = [
+                    annual_sums_df = st.session_state.energy_result
+                    annual_energy_cols = [
                         "Wind generation",
                         "Solar PV generation",
                         "Gas consumption",
                     ]
-                    annual_sums = annual_sums[annual_sums["variable"].isin(show_ad)]
+                    annual_sums_df = annual_sums_df[annual_energy_cols].sum().reset_index()
+                    annual_sums_df = annual_sums_df.round()
+                    annual_sums_df.columns = ["variable", "total"]
+                    # match gas colours from previous plot
+                    color_map["Gas consumption"] = color_map["Gas generation"]
                     fig_ad = px.bar(
-                        annual_sums,
+                        annual_sums_df,
                         x="variable",
                         y="total",
                         color="variable",

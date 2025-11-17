@@ -90,7 +90,8 @@ def solve(
         df["demand"] - df["gen_plus_pv"]
     ).clip(lower=0)
     # CCGT efficiency assumed: 50%
-    df["gas_demand"] = df["demand_after_gen_plus_pv"] / 0.5
+    df["gas_consumption"] = df["demand_after_gen_plus_pv"] / 0.5  # MWh
+    df = df.rename(columns={"demand_after_gen_plus_pv": "gas_generation"})
 
     # get GNESTE assumptions
     df_GNESTE = pd.concat([
@@ -101,7 +102,7 @@ def solve(
     ]).set_index("energy_tech")
 
     # calculate CAPEX costs
-    gas_mw = df["gas_demand"].max()
+    gas_mw = df["gas_generation"].max()
     capex = {
         "Gas CCGT": df_GNESTE.loc["Gas CCGT", "CAPEX"] * gas_mw,
         "BESS": df_GNESTE.loc["BESS", "CAPEX"] * bess_mw,
@@ -119,7 +120,7 @@ def solve(
 
     # calculate gas energy costs
     gas_fuel_cost = {
-        "Gas CCGT": df_GNESTE.loc["Gas CCGT", "fuel_price"] * df["gas_demand"].sum()
+        "Gas CCGT": df_GNESTE.loc["Gas CCGT", "fuel_price"] * df["gas_consumption"].sum()
     }
 
     # Combine into one DataFrame
@@ -140,7 +141,7 @@ def solve(
         + df_costs_emissions["20yr fuel cost"]
         )
 
-    df_costs_emissions.loc["Gas CCGT", "kgCO2"] = 202 * df["gas_demand"].sum()
+    df_costs_emissions.loc["Gas CCGT", "kgCO2"] = 202 * df["gas_consumption"].sum()
     df_costs_emissions["Lifetime kgCO2"] = lifetime_assumed * df_costs_emissions["kgCO2"]
     df_costs_emissions = df_costs_emissions.fillna(0)
 
@@ -149,7 +150,8 @@ def solve(
             "demand": "Data centre demand",
             "farm_wind_power": "Wind generation",
             "PV_AC": "Solar PV generation",
-            "gas_demand": "Gas consumption",
+            "gas_consumption": "Gas consumption",
+            "gas_generation": "Gas generation",
             "bess_power": "BESS power",
         })
 
