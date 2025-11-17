@@ -91,7 +91,9 @@ def get_colormap(layer_type: Literal["wind", "pv"]):
     elif layer_type == "pv":
         vals = get_json_feature_range(wind_pv_dict, "mean_PV_GTI")
         colormap = linear.YlOrBr_05.scale(vals[0], vals[1])
-        colormap.caption = "Global Tilted Irradiaton (GTI) at optimum tilt (kWh/m2/year)"
+        colormap.caption = (
+            "Global Tilted Irradiaton (GTI) at optimum tilt (kWh/m2/year)"
+        )
     else:
         return ValueError(f"{layer_type} not supported")
     return colormap
@@ -181,7 +183,7 @@ def get_folium_geojson(wind_pv_data, layer_type: str) -> folium.GeoJson:
 @st.cache_data
 def load_geojson_data() -> tuple[dict, pd.DataFrame]:
     """Load geojson data from hex_cell_outputs folder.
-    
+
     Returns dictionary (representing JSON) and pandas DataFrame
     """
     logger.info("Loading geojson data")
@@ -338,15 +340,17 @@ st.markdown(
 
 
 def select_location_expander():
-    """ Expander step 1 of dashboard
-    """
+    """Expander step 1 of dashboard"""
 
     map_col, graphs_col = st.columns(2)
     with map_col:
 
         layer_select = st.radio(
             "Map layer",
-            options=["120m wind speed", "Global Tilted Irradiaton (GTI) at optimum tilt"],
+            options=[
+                "120m wind speed",
+                "Global Tilted Irradiaton (GTI) at optimum tilt",
+            ],
             key="layer_radio",
             horizontal=True,
         )
@@ -365,9 +369,7 @@ def select_location_expander():
                 key="hex_map",
             )
             # Build legend
-            cmap = get_colormap(
-                layer_type="wind" if "wind" in layer_select else "pv"
-            )
+            cmap = get_colormap(layer_type="wind" if "wind" in layer_select else "pv")
             legend_html = create_colorbar_legend(cmap, num_ticks=5)
             st.markdown(legend_html, unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
@@ -430,8 +432,10 @@ def select_location_expander():
                 unsafe_allow_html=True,
             )
 
+
 with st.expander("1️⃣ Select location", expanded=True):
     select_location_expander()
+
 
 @st.fragment
 def select_capacities_expander():
@@ -563,7 +567,9 @@ def select_capacities_expander():
                         "Solar PV generation",
                         "Gas consumption",
                     ]
-                    annual_sums_df = annual_sums_df[annual_energy_cols].sum().reset_index()
+                    annual_sums_df = (
+                        annual_sums_df[annual_energy_cols].sum().reset_index()
+                    )
                     annual_sums_df = annual_sums_df.round()
                     annual_sums_df.columns = ["variable", "total"]
                     # match gas colours from previous plot
@@ -629,6 +635,7 @@ def select_capacities_expander():
                 st.dataframe(df_costs)
             else:
                 st.markdown("### Hit 'Calculate' to view results")
+
 
 with st.expander("2️⃣ Select capacities", expanded=True):
     select_capacities_expander()
