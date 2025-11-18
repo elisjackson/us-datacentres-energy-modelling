@@ -583,9 +583,9 @@ def select_capacities_expander():
                         color_discrete_map=color_map,
                         labels={
                             "variable": "Energy source",
-                            "total": "Annual energy genertaion / consumption (MWh)",
+                            "total": "Annual energy generation / consumption (MWh)",
                         },
-                        title="Annual energy genertaion / consumption",
+                        title="Annual energy generation / consumption",
                     )
                     fig_ad.update_traces(marker_line_width=0)
                     fig_ad.update_layout(template="plotly_white")
