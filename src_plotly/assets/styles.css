@@ -1,0 +1,19 @@
+/* Main content spacing */
+.content {
+    padding: 2rem 3rem;
+}
+
+.layout-row {
+    min-height: 100vh;
+    align-items: stretch;
+}
+
+.sidebar-col {
+    display: flex;
+}
+
+.sidebar {
+    flex: 1;
+    padding: 1.5rem;
+    background-color: #1e1e2f;
+}
