@@ -41,7 +41,7 @@ def generate_output_filename(
     year: int,
     month: Optional[int] = None,
     day: Optional[int] = None,
-    prefix: str = "mean_wind_speed"
+    prefix: str = "map"
 ) -> str:
     """
     Generate consistent output filename based on date parameters.
@@ -70,10 +70,10 @@ def main():
     # Configuration
     # Set month and day to None to download/process entire year
     # Country name must match a key in data/processed/calculated_country_bbox.json
-    country = "United States"
+    country = "United Kingdom"
     year = 2025
-    month = 1  # Set to None for full year, or specify month (1-12)
-    day = 1    # Set to None for full month/year, or specify day (1-31)
+    month = None  # Set to None for full year, or specify month (1-12)
+    day = None    # Set to None for full month/year, or specify day (1-31)
 
     # Create output directories
     data_dir = Path("data")
@@ -134,7 +134,6 @@ def main():
         )
         logger.info(f"Processing complete: {geojson_path}")
         logger.info(f"Number of polygons: {len(gdf)}")
-        logger.info(f"Wind speed range: {gdf['mean_wind_speed'].min():.2f} - {gdf['mean_wind_speed'].max():.2f} m/s")
     except Exception as e:
         logger.error(f"Processing failed: {e}")
         return
@@ -142,14 +141,16 @@ def main():
     # Step 4: Sanity check plot
     logger.info("Step 4: Creating sanity check plot")
 
-    plot_filename = generate_output_filename(country, year, month, day, prefix="wind_speed_map").replace(".geojson", ".html")
+    plot_filename = generate_output_filename(country, year, month, day, prefix="map").replace(".geojson", ".html")
     plot_path = processed_dir / plot_filename
 
     try:
         sanity_check_geojson(
             geojson_path=geojson_path,
             output_plot_path=plot_path,
-            backend="plotly"
+            backend="plotly",
+            # color_on="wind_speed_100"
+            color_on="ssrd"
         )
         logger.info(f"Plot saved: {plot_path}")
     except Exception as e:

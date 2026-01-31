@@ -165,11 +165,11 @@ def download_era5_data(
             "100m_v_component_of_wind",
             "surface_solar_radiation_downwards",  # this downwards for PV modelling
             "total_sky_direct_solar_radiation_at_surface",
-            "surface_solar_radiation_downward_clear_sky",
-            "2m_temperature",
-            "10m_u_component_of_wind",
-            "10m_v_component_of_wind",
-            "surface_pressure",
+            # "surface_solar_radiation_downward_clear_sky",
+            # "2m_temperature",
+            # "10m_u_component_of_wind",
+            # "10m_v_component_of_wind",
+            # "surface_pressure",
         ],
         "area": bbox  # [North, West, South, East]
     }

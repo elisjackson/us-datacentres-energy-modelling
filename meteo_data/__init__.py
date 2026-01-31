@@ -18,12 +18,12 @@ from .import_ed5 import (
 from .process import (
     calculate_wind_speed,
     read_era5_netcdf,
-    calculate_mean_wind_speed,
+    calculate_mean_over_time_values,
     points_to_grid_polygons,
     process_era5_to_geojson,
     process_era5_zip_to_geojson,
 )
-from .visualize import plot_wind_data, sanity_check_geojson
+from .visualize import plot_data, sanity_check_geojson
 
 __all__ = [
     # Import functions
@@ -35,11 +35,11 @@ __all__ = [
     # Process functions
     "calculate_wind_speed",
     "read_era5_netcdf",
-    "calculate_mean_wind_speed",
+    "calculate_mean_over_time_values",
     "points_to_grid_polygons",
     "process_era5_to_geojson",
     "process_era5_zip_to_geojson",
     # Visualization functions
-    "plot_wind_data",
+    "plot_data",
     "sanity_check_geojson",
 ]

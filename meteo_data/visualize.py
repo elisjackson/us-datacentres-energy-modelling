@@ -15,17 +15,18 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def plot_wind_data(
+def plot_data(
     gdf: gpd.GeoDataFrame,
     output_path: Optional[Union[str, Path]] = None,
     backend: str = "plotly",
+    color_on: str = "mean_wind_speed",
     show: bool = True
 ) -> Optional[go.Figure]:
     """
-    Plot wind data from GeoDataFrame for sanity checking.
+    Plot data from GeoDataFrame for sanity checking.
     
     Args:
-        gdf: GeoDataFrame with wind speed data
+        gdf: GeoDataFrame with wind speed / irradiance data
         output_path: Optional path to save plot
         backend: "plotly" or "matplotlib"
         show: Whether to display the plot
@@ -33,11 +34,11 @@ def plot_wind_data(
     Returns:
         Plotly figure if backend is "plotly", None otherwise
     """
-    if "mean_wind_speed" not in gdf.columns:
-        raise ValueError("GeoDataFrame must have 'mean_wind_speed' column")
+    if color_on not in gdf.columns:
+        raise ValueError(f"GeoDataFrame must have '{color_on}' column")
     
     if backend == "plotly":
-        return _plot_plotly(gdf, output_path, show)
+        return _plot_plotly(gdf, output_path, color_on, show)
     elif backend == "matplotlib":
         return _plot_matplotlib(gdf, output_path, show)
     else:
@@ -47,6 +48,7 @@ def plot_wind_data(
 def _plot_plotly(
     gdf: gpd.GeoDataFrame,
     output_path: Optional[Union[str, Path]],
+    color_on: str,
     show: bool
 ) -> go.Figure:
     """Create Plotly choropleth map."""
@@ -67,14 +69,14 @@ def _plot_plotly(
         gdf_with_id,
         geojson=geojson,
         locations="id",
-        color="mean_wind_speed",
+        color=color_on,
         color_continuous_scale="Viridis",
         mapbox_style="open-street-map",
         center={"lat": center_lat, "lon": center_lon},
         zoom=5,
         opacity=0.7,
-        labels={"mean_wind_speed": "Mean Wind Speed (m/s)"},
-        title="Mean Wind Speed Map"
+        labels={color_on: color_on},
+        title=f"Mean {color_on} Map"
     )
     
     fig.update_layout(
@@ -130,7 +132,8 @@ def _plot_matplotlib(
 def sanity_check_geojson(
     geojson_path: Union[str, Path],
     output_plot_path: Optional[Union[str, Path]] = None,
-    backend: str = "plotly"
+    backend: str = "plotly",
+    color_on: str = "mean_wind_speed"
 ) -> Optional[go.Figure]:
     """
     Load GeoJSON and create a sanity check plot.
@@ -153,7 +156,5 @@ def sanity_check_geojson(
     
     logger.info(f"GeoDataFrame shape: {gdf.shape}")
     logger.info(f"Columns: {gdf.columns.tolist()}")
-    if "mean_wind_speed" in gdf.columns:
-        logger.info(f"Wind speed range: {gdf['mean_wind_speed'].min():.2f} - {gdf['mean_wind_speed'].max():.2f} m/s")
     
-    return plot_wind_data(gdf, output_path=output_plot_path, backend=backend, show=True)
+    return plot_data(gdf, output_path=output_plot_path, backend=backend, color_on=color_on, show=True)
