@@ -21,9 +21,15 @@ def update_map_and_store(radio_selection, country):
 
 def make_base_figure(radio_selection, country):
     """Base choropleth only (no highlight). Used for initial display and for figure-store."""
-    filepath = r"C:\Users\Elis\repos\us-datacentres\data\processed\mean_wind_speed_United Kingdom_2025.geojson"
+    if country == "United Kingdom":
+        filepath = rf"C:\Users\Elis\repos\us-datacentres\data\processed\mean_wind_speed_{country}_2025.geojson"
+    elif country == "United States":
+        filepath = rf"C:\Users\Elis\repos\us-datacentres\data\processed\mean_wind_speed_{country}_2025_01_01.geojson"
+    else:
+        raise ValueError(f"Country {country} not supported")
+    # filepath = rf"C:\Users\Elis\repos\us-datacentres\data\processed\mean_wind_speed_{country}_2025_01_01.geojson"
     color_on = "mean_wind_speed"
-    geo_data = _get_geo_data(filepath, color_on)
+    geo_data = _get_geo_data(filepath, color_on, country)
     base_fig = geo_data["base_figure"]
     return go.Figure(base_fig)
 
@@ -58,7 +64,7 @@ def _center_from_geojson(geojson):
 _geo_cache = {}
 
 
-def _get_geo_data(filepath, color_on):
+def _get_geo_data(filepath, color_on, country):
     """Load GeoJSON once per filepath, build df, center, and base figure (no highlight); cache result."""
     if filepath in _geo_cache:
         return _geo_cache[filepath]
@@ -73,7 +79,12 @@ def _get_geo_data(filepath, color_on):
             color_on: [f["properties"][color_on] for f in features],
         }
     )
-    center = _center_from_geojson(geojson)
+    if country == "United States":
+        center = {"lat": 39.19, "lon": -98.45}
+        zoom = 2.5
+    else:
+        center = _center_from_geojson(geojson)
+        zoom = 4
     # Build base figure once (expensive); on click we only copy it and add the highlight trace.
     base_fig = px.choropleth_map(
         df,
@@ -84,7 +95,7 @@ def _get_geo_data(filepath, color_on):
         featureidkey="id",
         opacity=0.5,
         center=center,
-        zoom=4,
+        zoom=zoom,
         #         hover_name=None,
         hover_data={color_on: ":.2f", "id": False},
         labels={color_on: "Mean wind speed (m/s)"},

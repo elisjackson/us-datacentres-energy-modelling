@@ -158,27 +158,56 @@ def read_era5_netcdf(netcdf_path: Union[str, Path]) -> xr.Dataset:
             with zipfile.ZipFile(netcdf_path, 'r') as zip_ref:
                 zip_ref.extractall(temp_dir)
             
-            # Find the NetCDF file
-            nc_files = list(Path(temp_dir).glob("*.nc"))
+            # Find all NetCDF files (sorted for deterministic order, e.g. time chunks)
+            nc_files = sorted(Path(temp_dir).glob("*.nc"))
             if not nc_files:
                 raise ValueError(f"No NetCDF file found in zip: {netcdf_path}")
             if len(nc_files) > 1:
-                logger.warning(f"Multiple NetCDF files in zip, using first: {nc_files[0]}")
-            
-            nc_file_path = nc_files[0]
-            
-            # Open and fully load the dataset into memory
-            # This ensures all data is in memory before we close/delete the temp file
-            with xr.open_dataset(nc_file_path) as ds:
-                # Load all data into memory
-                ds_loaded = ds.load()
-                # Make a copy to ensure it's independent of the file
-                ds_copy = ds_loaded.copy(deep=True)
-            
+                logger.info(
+                    f"Multiple NetCDF files in zip ({len(nc_files)}), merging: "
+                    f"{[f.name for f in nc_files]}"
+                )
+
+            # Open and fully load each dataset into memory, then combine
+            datasets = []
+            for nc_file_path in nc_files:
+                with xr.open_dataset(nc_file_path) as ds:
+                    ds_loaded = ds.load()
+                    datasets.append(ds_loaded.copy(deep=True))
+
+            if len(datasets) == 1:
+                ds_combined = datasets[0]
+            else:
+                try:
+                    ds_combined = xr.combine_by_coords(
+                        datasets,
+                        combine_attrs="drop_conflicts",
+                        compat="no_conflicts",
+                    )
+                except ValueError as e:
+                    # Fallback: concat along time if all have a time dimension
+                    time_dim = None
+                    for d in datasets:
+                        for c in d.coords:
+                            if "time" in c.lower():
+                                time_dim = c
+                                break
+                        if time_dim is not None:
+                            break
+                    if time_dim is None:
+                        time_dim = "time"
+                    if all(time_dim in d.dims for d in datasets):
+                        ds_combined = xr.concat(datasets, dim=time_dim)
+                    else:
+                        raise ValueError(
+                            f"Cannot merge {len(datasets)} NetCDF files: "
+                            f"combine_by_coords failed ({e}); no common time dimension to concat."
+                        ) from e
+
             # Clean up temporary directory
             shutil.rmtree(temp_dir, ignore_errors=True)
-            
-            return ds_copy
+
+            return ds_combined
         except Exception as e:
             # Clean up on error
             shutil.rmtree(temp_dir, ignore_errors=True)
@@ -221,7 +250,9 @@ def points_to_grid_polygons(
     lons: np.ndarray,
     lats: np.ndarray,
     values: np.ndarray,
-    method: Literal["grid", "voronoi"] = "grid"
+    method: Literal["grid", "voronoi"] = "grid",
+    lon_spacing: Optional[float] = None,
+    lat_spacing: Optional[float] = None,
 ) -> gpd.GeoDataFrame:
     """
     Convert point data to polygons (grid cells or Voronoi polygons).
@@ -231,12 +262,19 @@ def points_to_grid_polygons(
         lats: Latitude values
         values: Values to assign to polygons (e.g., mean wind speed)
         method: "grid" for regular grid cells, "voronoi" for Voronoi polygons
+        lon_spacing: Optional half-width of grid cells in longitude (so cell
+            width = 2*lon_spacing). If provided with lat_spacing, cells tile.
+        lat_spacing: Optional half-height of grid cells in latitude.
         
     Returns:
         GeoDataFrame with polygon geometries and values
     """
     if method == "grid":
-        return _points_to_grid_cells(lons, lats, values)
+        return _points_to_grid_cells(
+            lons, lats, values,
+            lon_spacing=lon_spacing,
+            lat_spacing=lat_spacing,
+        )
     elif method == "voronoi":
         return _points_to_voronoi(lons, lats, values)
     else:
@@ -246,7 +284,9 @@ def points_to_grid_polygons(
 def _points_to_grid_cells(
     lons: np.ndarray,
     lats: np.ndarray,
-    values: np.ndarray
+    values: np.ndarray,
+    lon_spacing: Optional[float] = None,
+    lat_spacing: Optional[float] = None,
 ) -> gpd.GeoDataFrame:
     """
     Convert points to regular grid cell polygons.
@@ -255,24 +295,29 @@ def _points_to_grid_cells(
         lons: Longitude values
         lats: Latitude values
         values: Values to assign to polygons
+        lon_spacing: Optional half-width of each cell (so cells tile). If None,
+            inferred from mean spacing of unique lons.
+        lat_spacing: Optional half-height of each cell. If None, inferred.
         
     Returns:
         GeoDataFrame with grid cell polygons
     """
-    # Get unique sorted coordinates
-    unique_lons = np.unique(lons)
-    unique_lats = np.unique(lats)
-    
-    # Calculate cell sizes (half the distance between adjacent points)
-    if len(unique_lons) > 1:
-        lon_spacing = np.diff(unique_lons).mean() / 2
+    # Cell half-sizes: use explicit spacing if provided, else infer from points
+    if lon_spacing is not None and lat_spacing is not None:
+        pass  # use provided
     else:
-        lon_spacing = 0.1  # Default spacing
-    
-    if len(unique_lats) > 1:
-        lat_spacing = np.diff(unique_lats).mean() / 2
-    else:
-        lat_spacing = 0.1  # Default spacing
+        unique_lons = np.unique(lons)
+        unique_lats = np.unique(lats)
+        if lon_spacing is None:
+            if len(unique_lons) > 1:
+                lon_spacing = float(np.diff(unique_lons).mean() / 2)
+            else:
+                lon_spacing = 0.1
+        if lat_spacing is None:
+            if len(unique_lats) > 1:
+                lat_spacing = float(np.diff(unique_lats).mean() / 2)
+            else:
+                lat_spacing = 0.1
     
     polygons = []
     polygon_values = []
@@ -358,21 +403,108 @@ def _points_to_voronoi(
     return gdf
 
 
+def _aggregate_points_to_max_polygons(
+    lons: np.ndarray,
+    lats: np.ndarray,
+    values: np.ndarray,
+    max_polygons: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, Optional[float], Optional[float]]:
+    """
+    Reduce (lons, lats, values) to at most max_polygons points by binning in
+    lat/lon and averaging values within each bin. Bins are chosen to preserve
+    aspect ratio of the data extent. Returns regular grid centers and cell
+    half-sizes so grid polygons tile with no gaps.
+
+    Returns:
+        (lons, lats, values, lon_spacing, lat_spacing). When no aggregation
+        was done, lon_spacing and lat_spacing are None.
+    """
+    lons_f = lons.flatten()
+    lats_f = lats.flatten()
+    values_f = values.flatten()
+    valid = ~np.isnan(values_f)
+    lons_v = lons_f[valid]
+    lats_v = lats_f[valid]
+    values_v = values_f[valid]
+    n_points = len(values_v)
+    if n_points <= max_polygons:
+        return lons_v, lats_v, values_v, None, None
+
+    extent_lat = float(np.nanmax(lats_f) - np.nanmin(lats_f)) or 1.0
+    extent_lon = float(np.nanmax(lons_f) - np.nanmin(lons_f)) or 1.0
+    ratio = extent_lat / extent_lon
+    n_bins_lon = max(1, int(np.sqrt(max_polygons / ratio)))
+    n_bins_lat = max(1, int(np.sqrt(max_polygons * ratio)))
+    while n_bins_lat * n_bins_lon > max_polygons:
+        if n_bins_lat >= n_bins_lon:
+            n_bins_lat -= 1
+        else:
+            n_bins_lon -= 1
+        if n_bins_lat < 1 or n_bins_lon < 1:
+            break
+    n_bins_lat = max(1, n_bins_lat)
+    n_bins_lon = max(1, n_bins_lon)
+
+    lat_min, lat_max = float(np.nanmin(lats_f)), float(np.nanmax(lats_f))
+    lon_min, lon_max = float(np.nanmin(lons_f)), float(np.nanmax(lons_f))
+    lat_edges = np.linspace(lat_min, lat_max, n_bins_lat + 1)
+    lon_edges = np.linspace(lon_min, lon_max, n_bins_lon + 1)
+
+    # Cell half-sizes so grid polygons tile exactly (no gaps)
+    lon_spacing = (lon_max - lon_min) / (2 * n_bins_lon)
+    lat_spacing = (lat_max - lat_min) / (2 * n_bins_lat)
+
+    # Regular grid centers (so cells tile); value = mean in bin
+    lat_centers = (lat_edges[:-1] + lat_edges[1:]) / 2
+    lon_centers = (lon_edges[:-1] + lon_edges[1:]) / 2
+
+    lons_out = []
+    lats_out = []
+    values_out = []
+    for i in range(n_bins_lat):
+        for j in range(n_bins_lon):
+            lat_lo, lat_hi = lat_edges[i], lat_edges[i + 1]
+            lon_lo, lon_hi = lon_edges[j], lon_edges[j + 1]
+            mask = (
+                (lats_v >= lat_lo) & (lats_v <= lat_hi) &
+                (lons_v >= lon_lo) & (lons_v <= lon_hi)
+            )
+            if not np.any(mask):
+                continue
+            lons_out.append(float(lon_centers[j]))
+            lats_out.append(float(lat_centers[i]))
+            values_out.append(float(np.nanmean(values_v[mask])))
+    return (
+        np.array(lons_out),
+        np.array(lats_out),
+        np.array(values_out),
+        lon_spacing,
+        lat_spacing,
+    )
+
+
 def process_era5_to_geojson(
     netcdf_path: Union[str, Path],
     output_path: Optional[Union[str, Path]] = None,
     polygon_method: Literal["grid", "voronoi"] = "grid",
-    time_dim: str = "valid_time"
+    time_dim: str = "valid_time",
+    max_polygons: Union[int, None] = None
 ) -> gpd.GeoDataFrame:
     """
     Process ERA5 NetCDF file to GeoJSON format.
-    
+
+    If max_polygons is set and the grid would produce more than that many
+    polygons, nearby lat/lon points are binned and values averaged so that
+    the output has at most max_polygons polygons.
+
     Args:
         netcdf_path: Path to NetCDF file or zip file
         output_path: Optional path to save GeoJSON file. If None, doesn't save
         polygon_method: Method to convert points to polygons ("grid" or "voronoi")
         time_dim: Name of time dimension in dataset
-        
+        max_polygons: If set, aggregate (average) nearby points so output has
+            at most this many polygons.
+
     Returns:
         GeoDataFrame with mean wind speed polygons
     """
@@ -393,19 +525,36 @@ def process_era5_to_geojson(
             f"Could not find longitude/latitude coordinates. Available: {available_coords}"
         )
     
-    lons = lon_var.values
-    lats = lat_var.values
-    
+    lons = np.asarray(lon_var.values)
+    lats = np.asarray(lat_var.values)
+    values = np.asarray(mean_wind_speed.values)
+
     # Create meshgrid if needed
     if lons.ndim == 1 and lats.ndim == 1:
         lons, lats = np.meshgrid(lons, lats)
-    
+
+    # If there are more than max_polygons points, aggregate to regular grid + cell sizes for tiling
+    grid_lon_spacing = None
+    grid_lat_spacing = None
+    if max_polygons is not None:
+        n_points = np.sum(~np.isnan(values))
+        if n_points > max_polygons:
+            logger.info(
+                f"Aggregating {n_points} points to at most {max_polygons} polygons "
+                "(regular grid, tiling cells)"
+            )
+            lons, lats, values, grid_lon_spacing, grid_lat_spacing = _aggregate_points_to_max_polygons(
+                lons, lats, values, max_polygons
+            )
+
     logger.info(f"Converting to {polygon_method} polygons")
     gdf = points_to_grid_polygons(
         lons,
         lats,
-        mean_wind_speed.values,
-        method=polygon_method
+        values,
+        method=polygon_method,
+        lon_spacing=grid_lon_spacing,
+        lat_spacing=grid_lat_spacing,
     )
     
     if output_path is not None:
@@ -421,7 +570,8 @@ def process_era5_zip_to_geojson(
     zip_path: Union[str, Path],
     output_path: Optional[Union[str, Path]] = None,
     polygon_method: Literal["grid", "voronoi"] = "grid",
-    time_dim: str = "valid_time"
+    time_dim: str = "valid_time",
+    max_polygons: Union[int, None] = None
 ) -> gpd.GeoDataFrame:
     """
     Process ERA5 zip file (containing NetCDF) to GeoJSON format.
@@ -442,5 +592,6 @@ def process_era5_zip_to_geojson(
         zip_path,
         output_path=output_path,
         polygon_method=polygon_method,
-        time_dim=time_dim
+        time_dim=time_dim,
+        max_polygons=max_polygons
     )

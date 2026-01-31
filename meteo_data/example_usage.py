@@ -21,7 +21,7 @@ if str(_repo_root) not in sys.path:
 import logging
 from typing import Optional
 from meteo_data import (
-    download_era5_wind_data,
+    download_era5_data,
     process_era5_zip_to_geojson,
     sanity_check_geojson,
 )
@@ -72,8 +72,8 @@ def main():
     # Country name must match a key in data/processed/calculated_country_bbox.json
     country = "United States"
     year = 2025
-    month = None  # Set to None for full year, or specify month (1-12)
-    day = None    # Set to None for full month/year, or specify day (1-31)
+    month = 1  # Set to None for full year, or specify month (1-12)
+    day = 1    # Set to None for full month/year, or specify day (1-31)
 
     # Create output directories
     data_dir = Path("data")
@@ -93,7 +93,7 @@ def main():
         logger.info(f"Downloading {year}-{month:02d}-{day:02d} for {country}")
 
     try:
-        zip_path = download_era5_wind_data(
+        zip_path = download_era5_data(
             country=country,
             year=year,
             month=month,
@@ -129,7 +129,8 @@ def main():
         gdf = process_era5_zip_to_geojson(
             zip_path=clip_path,
             output_path=geojson_path,
-            polygon_method="grid"  # or "voronoi"
+            polygon_method="grid",  # or "voronoi",
+            max_polygons=12000
         )
         logger.info(f"Processing complete: {geojson_path}")
         logger.info(f"Number of polygons: {len(gdf)}")

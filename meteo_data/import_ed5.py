@@ -92,7 +92,7 @@ def generate_date_list(year: int, month: Optional[int] = None,
     return years, months, days
 
 
-def download_era5_wind_data(
+def download_era5_data(
     country: str,
     year: int,
     month: Optional[int] = None,
@@ -101,7 +101,7 @@ def download_era5_wind_data(
     client: Optional[cdsapi.Client] = None
 ) -> Path:
     """
-    Download ERA5 wind data for a given country and time period.
+    Download ERA5 data for a given country and time period.
     
     Args:
         country: Country name (e.g., "UK", "US")
@@ -136,11 +136,11 @@ def download_era5_wind_data(
     
     # Generate output filename
     if day is not None:
-        filename = f"era5_wind_{country}_{year}_{month:02d}_{day:02d}.zip"
+        filename = f"era5_{country}_{year}_{month:02d}_{day:02d}.zip"
     elif month is not None:
-        filename = f"era5_wind_{country}_{year}_{month:02d}.zip"
+        filename = f"era5_{country}_{year}_{month:02d}.zip"
     else:
-        filename = f"era5_wind_{country}_{year}.zip"
+        filename = f"era5_{country}_{year}.zip"
     
     output_path = output_dir / filename
     
@@ -161,8 +161,15 @@ def download_era5_wind_data(
         "data_format": "netcdf",
         "download_format": "zip",
         "variable": [
-            "100m_u_component_of_wind",
-            "100m_v_component_of_wind"
+            "100m_u_component_of_wind",  # for Wind
+            "100m_v_component_of_wind",
+            "surface_solar_radiation_downwards",  # this downwards for PV modelling
+            "total_sky_direct_solar_radiation_at_surface",
+            "surface_solar_radiation_downward_clear_sky",
+            "2m_temperature",
+            "10m_u_component_of_wind",
+            "10m_v_component_of_wind",
+            "surface_pressure",
         ],
         "area": bbox  # [North, West, South, East]
     }

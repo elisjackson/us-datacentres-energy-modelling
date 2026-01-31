@@ -10,7 +10,7 @@ This module provides functionality to:
 
 from .import_ed5 import (
     get_country_bbox,
-    download_era5_wind_data,
+    download_era5_data,
     download_era5_wind_data_by_bbox,
     generate_time_list,
     generate_date_list,
@@ -28,7 +28,7 @@ from .visualize import plot_wind_data, sanity_check_geojson
 __all__ = [
     # Import functions
     "get_country_bbox",
-    "download_era5_wind_data",
+    "download_era5_data",
     "download_era5_wind_data_by_bbox",
     "generate_time_list",
     "generate_date_list",
