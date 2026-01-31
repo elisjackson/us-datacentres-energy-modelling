@@ -25,6 +25,7 @@ from meteo_data import (
     process_era5_zip_to_geojson,
     sanity_check_geojson,
 )
+import meteo_data.process as md_process
 
 # Setup logging
 logging.basicConfig(
@@ -69,7 +70,7 @@ def main():
     # Configuration
     # Set month and day to None to download/process entire year
     # Country name must match a key in data/processed/calculated_country_bbox.json
-    country = "United Kingdom"
+    country = "United States"
     year = 2025
     month = None  # Set to None for full year, or specify month (1-12)
     day = None    # Set to None for full month/year, or specify day (1-31)
@@ -79,8 +80,8 @@ def main():
     data_dir.mkdir(exist_ok=True)
     downloads_dir = data_dir / "downloads"
     downloads_dir.mkdir(exist_ok=True)
-    output_dir = data_dir / "processed"
-    output_dir.mkdir(exist_ok=True)
+    processed_dir = data_dir / "processed"
+    processed_dir.mkdir(exist_ok=True)
 
     # Step 1: Download ERA5 data
     logger.info("Step 1: Downloading ERA5 wind data")
@@ -106,17 +107,27 @@ def main():
         logger.error("See: https://cds.climate.copernicus.eu/api-how-to")
         return
 
-    # Step 2: Process data to GeoJSON
-    logger.info("Step 2: Processing data to GeoJSON")
+    # Step 2: Clip to country + buffer GeoJSON
+    # This takes the data in the ERA5 data from the bounds of a bbox to the bounds of a country + buffer
+    logger.info("Step 2: Clipping to country + buffer GeoJSON")
+    clip_path = md_process.clip_era5_zip_to_country_buffer(
+        zip_path=zip_path,
+        processed_dir=processed_dir,
+        country=country
+    )
+    logger.info(f"Clip complete: {clip_path}")
+
+    # Step 3: Process data to GeoJSON
+    logger.info("Step 3: Processing data to GeoJSON")
     if month is None and day is None:
         logger.info("Processing full year data - this may take a while and use significant memory...")
 
     geojson_filename = generate_output_filename(country, year, month, day)
-    geojson_path = output_dir / geojson_filename
+    geojson_path = processed_dir / geojson_filename
 
     try:
         gdf = process_era5_zip_to_geojson(
-            zip_path=zip_path,
+            zip_path=clip_path,
             output_path=geojson_path,
             polygon_method="grid"  # or "voronoi"
         )
@@ -127,11 +138,11 @@ def main():
         logger.error(f"Processing failed: {e}")
         return
 
-    # Step 3: Sanity check plot
-    logger.info("Step 3: Creating sanity check plot")
+    # Step 4: Sanity check plot
+    logger.info("Step 4: Creating sanity check plot")
 
     plot_filename = generate_output_filename(country, year, month, day, prefix="wind_speed_map").replace(".geojson", ".html")
-    plot_path = output_dir / plot_filename
+    plot_path = processed_dir / plot_filename
 
     try:
         sanity_check_geojson(
@@ -144,9 +155,7 @@ def main():
         logger.error(f"Plotting failed: {e}")
         return
 
-    logger.info("=" * 60)
     logger.info("All steps completed successfully!")
-    logger.info("=" * 60)
 
 
 if __name__ == "__main__":

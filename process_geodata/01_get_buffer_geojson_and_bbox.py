@@ -245,7 +245,7 @@ def load_gdf(config: dict) -> gpd.GeoDataFrame:
     return gdf
 
 if __name__ == "__main__":
-    country = "United Kingdom"
+    country = "United States"
     bbox = process(country)
     # print(type(bbox))
     logger.info(f"bbox: {bbox}")

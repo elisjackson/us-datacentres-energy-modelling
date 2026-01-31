@@ -13,12 +13,14 @@ import xarray as xr
 import numpy as np
 import geopandas as gpd
 from shapely.geometry import Point, Polygon
+from shapely.ops import unary_union
 from pathlib import Path
 from typing import Optional, Union, Literal
 import logging
 import zipfile
 import tempfile
 import shutil
+from pyogrio.errors import DataSourceError
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +37,105 @@ def calculate_wind_speed(u: np.ndarray, v: np.ndarray) -> np.ndarray:
         Wind speed (m/s)
     """
     return np.sqrt(u**2 + v**2)
+
+
+def _mask_xarray_to_geometry(ds: xr.Dataset, geometry) -> xr.Dataset:
+    """
+    Mask an xarray Dataset to a Shapely geometry.
+    Grid points outside the geometry are set to NaN; coordinates are unchanged.
+    """
+    lon_var = ds.coords.get("longitude")
+    lat_var = ds.coords.get("latitude")
+    if lon_var is None or lat_var is None:
+        raise ValueError(
+            "Dataset must have 'longitude' and 'latitude' coordinates. "
+            f"Available: {list(ds.coords.keys())}"
+        )
+    lons = np.asarray(lon_var)
+    lats = np.asarray(lat_var)
+    if lons.ndim == 1 and lats.ndim == 1:
+        lon_2d, lat_2d = np.meshgrid(lons, lats)
+    else:
+        lon_2d = lons
+        lat_2d = lats
+    mask = np.array(
+        [
+            geometry.contains(Point(float(lon), float(lat)))
+            for lon, lat in zip(lon_2d.ravel(), lat_2d.ravel())
+        ]
+    ).reshape(lon_2d.shape)
+    mask_da = xr.DataArray(
+        mask,
+        coords=[lat_var, lon_var],
+        dims=["latitude", "longitude"],
+    )
+    return ds.where(mask_da)
+
+
+def clip_era5_zip_to_country_buffer(
+    zip_path: Union[str, Path], processed_dir: Path, country: str
+) -> Path:
+    """
+    Clip ERA5 data to the country buffer polygon and save as a new NetCDF file.
+    Grid points outside the polygon are set to NaN; the grid extent is unchanged.
+
+    Args:
+        zip_path: Path to zip file containing ERA5 NetCDF
+        processed_dir: Path to processed directory (contains by_country/...)
+        country: Country name (used for buffer GeoJSON filename)
+
+    Returns:
+        Path to the saved clipped NetCDF file
+    """
+    zip_path = Path(zip_path)
+    processed_dir = Path(processed_dir)
+    
+    # Read the country buffer GeoJSON
+    country_buffer_path = processed_dir / "by_country" / "buffered_geojsons" / f"{country}.geojson"
+    try:
+        country_buffer = gpd.read_file(country_buffer_path)
+    except DataSourceError as e:
+        raise DataSourceError(
+            f"Country buffer GeoJSON not found for {country}. "
+            f"Run process_geodata/01_get_buffer_geojson_and_bbox.py to generate it. "
+            f"Expecting file: {country_buffer_path}"
+        ) from e
+    
+    # Single geometry from gdf (union if multiple rows)
+    geometry = unary_union(country_buffer.geometry)
+
+    # Read the ERA5 zip file
+    ds = read_era5_netcdf(zip_path)
+
+    # Mask the dataset to the polygon (points outside -> NaN)
+    ds = _mask_xarray_to_geometry(ds, geometry)
+
+    # Compute wind speed (abs value) from u and v at each time step, add to dataset, drop u and v
+    u_name, v_name = "u100", "v100"
+    u = ds[u_name]
+    v = ds[v_name]
+    wind_speed = calculate_wind_speed(u, v)  # keeps time dimension
+    ds = ds.drop_vars([u_name, v_name], errors="ignore")
+    ds["wind_speed"] = wind_speed
+    # Keep only wind_speed (and all coordinates, including time)
+    ds = ds[["wind_speed"]]
+
+    # Save the clipped dataset as a zip containing one .nc file (same format as CDS download)
+    out_dir = processed_dir / "by_country" / "era5_clipped"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    clip_path = out_dir / f"{country}_{zip_path.stem}.zip"
+    nc_stem = f"{country}_{zip_path.stem}.nc"
+    with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as tmp:
+        tmp_nc = Path(tmp.name)
+    try:
+        ds.to_netcdf(tmp_nc)
+        with zipfile.ZipFile(clip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.write(tmp_nc, arcname=nc_stem)
+    finally:
+        tmp_nc.unlink(missing_ok=True)
+    logger.info(f"Clipped ERA5 data saved to {clip_path}")
+    return clip_path
+
 
 
 def read_era5_netcdf(netcdf_path: Union[str, Path]) -> xr.Dataset:
@@ -93,31 +194,27 @@ def calculate_mean_wind_speed(
 ) -> xr.DataArray:
     """
     Calculate mean wind speed from ERA5 dataset.
-    
-    Args:
-        ds: xarray Dataset with 'u100' and 'v100' variables
-        time_dim: Name of time dimension
-        
-    Returns:
-        DataArray with mean wind speed over time
+    - If the dataset has 'mean_wind_speed', return it (optionally mean over time if present).
+    - If the dataset has 'wind_speed' (time, lat, lon), return its mean over time.
+    - Otherwise compute from u100 and v100 and mean over time.
     """
-    # Get u and v components
+    if "mean_wind_speed" in ds.data_vars:
+        out = ds["mean_wind_speed"]
+        if time_dim in out.dims:
+            out = out.mean(dim=time_dim)
+        return out
+    if "wind_speed" in ds.data_vars:
+        return ds["wind_speed"].mean(dim=time_dim)
+
     u = ds.get("u100")
     v = ds.get("v100")
-    
     if u is None or v is None:
         available_vars = list(ds.data_vars)
         raise ValueError(
             f"Could not find u and v wind components. Available variables: {available_vars}"
         )
-    
-    # Calculate wind speed for each time step
     wind_speed = calculate_wind_speed(u, v)
-    
-    # Calculate mean over time dimension
-    mean_wind_speed = wind_speed.mean(dim=time_dim)
-    
-    return mean_wind_speed
+    return wind_speed.mean(dim=time_dim)
 
 
 def points_to_grid_polygons(

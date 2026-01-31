@@ -17,3 +17,12 @@
     padding: 1.5rem;
     background-color: #1e1e2f;
 }
+
+/* Plotly colorbar text – map backend may ignore tickfont/title font, so override with CSS */
+#map .colorbar text,
+#map .cbtitle,
+#map .cbtitle text,
+#map .cbaxis text {
+    fill: #e0e0e0 !important;
+    color: #e0e0e0 !important;
+}
