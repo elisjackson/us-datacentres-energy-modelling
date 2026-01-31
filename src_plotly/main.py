@@ -57,8 +57,6 @@ def make_choropleth(radio_selection, click_data):
     )
     fig.update_layout(margin=dict(r=0, t=0, l=0, b=0))
 
-    # print(geojson)
-
     fig.add_trace(
         px.choropleth_map(
             df,
@@ -66,8 +64,6 @@ def make_choropleth(radio_selection, click_data):
             locations="district",
             color=color_on,
             featureidkey="properties.district",
-            # center={"lat": 45.5517, "lon": -73.7073},
-            # zoom=9,
             range_color=[0, 6500],
             opacity=1
         ).data[0]
@@ -91,6 +87,12 @@ radioitems = html.Div(
     className="mb-3",
 )
 
+items = [
+    dbc.DropdownMenuItem("Item 1"),
+    dbc.DropdownMenuItem("Item 2"),
+    dbc.DropdownMenuItem("Item 3"),
+]
+
 accordion = dbc.Accordion(
     [
         dbc.AccordionItem(
@@ -98,8 +100,13 @@ accordion = dbc.Accordion(
                 dbc.Row(
                     [
                         dbc.Col(
-                            [   
-                                radioitems,
+                            [
+                                dbc.Row(
+                                    [
+                                        dbc.Col(radioitems),
+                                        dbc.Col(dcc.Dropdown(['NYC', 'MTL', 'SF'], 'NYC', id='demo-dropdown')),
+                                    ],
+                                ),
                                 dcc.Graph(
                                     id="map",
                                     style={"height": "600px"}
