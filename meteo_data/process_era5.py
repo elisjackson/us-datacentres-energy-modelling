@@ -72,6 +72,37 @@ def _mask_xarray_to_geometry(ds: xr.Dataset, geometry) -> xr.Dataset:
     return ds.where(mask_da)
 
 
+def save_dataset_to_zip(
+    ds: xr.Dataset,
+    zip_path: Union[str, Path],
+    nc_arcname: str,
+) -> Path:
+    """
+    Save an xarray Dataset to a zip file containing a single NetCDF file.
+
+    Args:
+        ds: Dataset to save
+        zip_path: Path to the output .zip file (parent dir is created if needed)
+        nc_arcname: Name of the .nc file inside the zip
+
+    Returns:
+        Path to the written zip file
+    """
+    logger.info(f"Saving dataset to zip file: {zip_path}")
+    zip_path = Path(zip_path)
+    zip_path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as tmp:
+        tmp_nc = Path(tmp.name)
+    try:
+        ds.to_netcdf(tmp_nc)
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.write(tmp_nc, arcname=nc_arcname)
+    finally:
+        tmp_nc.unlink(missing_ok=True)
+    logger.info(f"Zip file saved to: {zip_path}")
+    return zip_path
+
+
 def clip_era5_zip_to_country_buffer(
     zip_path: Union[str, Path], processed_dir: Path, country: str
 ) -> Path:
@@ -111,7 +142,7 @@ def clip_era5_zip_to_country_buffer(
     ds = _mask_xarray_to_geometry(ds, geometry)
 
     # Compute wind speed (abs value) from u and v at each time step, add to dataset, drop u and v
-    wind_speed_heights = [10, 100]
+    wind_speed_heights = [100]
     for height in wind_speed_heights:
         u_name, v_name = f"u{height}", f"v{height}"
         u = ds[u_name]
@@ -120,19 +151,10 @@ def clip_era5_zip_to_country_buffer(
         ds = ds.drop_vars([u_name, v_name], errors="ignore")
         ds[f"wind_speed_{height}"] = wind_speed
 
-    # Save the clipped dataset as a zip containing one .nc file (same format as CDS download)
     out_dir = processed_dir / "by_country" / "era5_clipped"
-    out_dir.mkdir(parents=True, exist_ok=True)
     clip_path = out_dir / f"{country}_{zip_path.stem}.zip"
     nc_stem = f"{country}_{zip_path.stem}.nc"
-    with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as tmp:
-        tmp_nc = Path(tmp.name)
-    try:
-        ds.to_netcdf(tmp_nc)
-        with zipfile.ZipFile(clip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.write(tmp_nc, arcname=nc_stem)
-    finally:
-        tmp_nc.unlink(missing_ok=True)
+    save_dataset_to_zip(ds, clip_path, nc_stem)
     logger.info(f"Clipped ERA5 data saved to {clip_path}")
     return clip_path
 
@@ -182,7 +204,7 @@ def read_era5_netcdf(netcdf_path: Union[str, Path]) -> xr.Dataset:
                     ds_combined = xr.combine_by_coords(
                         datasets,
                         combine_attrs="drop_conflicts",
-                        compat="no_conflicts",
+                        compat="override",  # allow differing expver (ERA5 experiment version) across files
                     )
                 except ValueError as e:
                     # Fallback: concat along time if all have a time dimension

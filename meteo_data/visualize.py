@@ -156,5 +156,6 @@ def sanity_check_geojson(
     
     logger.info(f"GeoDataFrame shape: {gdf.shape}")
     logger.info(f"Columns: {gdf.columns.tolist()}")
+    logger.info(f"Color on: {color_on}")
     
     return plot_data(gdf, output_path=output_plot_path, backend=backend, color_on=color_on, show=True)

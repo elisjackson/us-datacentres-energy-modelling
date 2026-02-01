@@ -18,29 +18,8 @@ Development notes for importing and processing meteo data, in preparation for us
   - Script should be able to plot the data in a map for sanity checking the output
 
 
-### Example API code for pulling ED5 data
+### TODO - updated 01/02/26
 
-From: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=download
-
-```
-import cdsapi
-
-dataset = "reanalysis-era5-single-levels"
-request = {
-    "product_type": ["reanalysis"],
-    "year": ["2025"],
-    "month": ["01"],
-    "day": ["01"],
-    "time": ["00:00", "01:00"],
-    "data_format": "netcdf",
-    "download_format": "zip",
-    "variable": [
-        "100m_u_component_of_wind",
-        "100m_v_component_of_wind"
-    ],
-    "area": [52.37, -5.45, 51.43, -2.33]
-}
-
-client = cdsapi.Client()
-client.retrieve(dataset, request).download()
-```
+- Debug US issue
+- Run fully (all 12 months) for US
+- Run for Canada

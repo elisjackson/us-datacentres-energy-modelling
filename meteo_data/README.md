@@ -128,16 +128,23 @@ zip_path = download_era5_wind_data_by_bbox(
 
 ## Module Structure
 
-- `import_ed5.py`: Functions for downloading ERA5 data from CDS API; country bboxes are read from `data/processed/calculated_country_bbox.json`
-- `process.py`: Functions for processing NetCDF files and converting to GeoJSON
+- `import_era5.py`: Functions for downloading ERA5 data from CDS API; country bboxes are read from `data/processed/calculated_country_bbox.json`
+- `process_era5.py`: Functions for processing NetCDF files and converting to GeoJSON
 - `visualize.py`: Functions for creating sanity check plots
-- `example_usage.py`: Example workflow script
+- `main.py`: Full workflow script triggering the above in turn
 
 ## Supported Countries
 
 Country bounding boxes are loaded from `data/processed/calculated_country_bbox.json` (created by the `process_geodata/01_get_bbox.py` script). Use country names that match the keys in that file (e.g. `"United Kingdom"`, `"United States"`, `"Canada"`). To add or update countries, run `process_geodata/01_get_bbox.py` for the desired country and the JSON file will be updated.
 
 ## Notes
+
+### Clipped data: nulls outside the country + buffer boundary
+
+When you use `clip_era5_zip_to_country_buffer`, grid points **outside** the country (or country buffer) are set to **NaN**, not removed. The dataset keeps a **regular 2D grid** (latitude × longitude × time); cells outside the polygon simply have null values.
+
+- **Why nulls?** Nulls are intentional: they mark “no data” for that location (outside the area of interest). Any count of null vs non-null values will include these masked-out cells.
+- **Why not drop those coordinates?** Dropping outside points would give an irregular set of points and would require changing downstream code (GeoJSON processing, plotting, regridding) that expects a regular grid. Keeping the grid and using NaN for “outside” avoids that and is the usual approach.
 
 - ERA5 data is available from 1940 to present (with some delay)
 - **Full year downloads**: You can download entire years by setting `month=None` and `day=None`. Full year downloads can be very large (several GB) and may take significant time to download and process

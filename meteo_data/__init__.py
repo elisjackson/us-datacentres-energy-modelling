@@ -8,14 +8,14 @@ This module provides functionality to:
 - Visualize data for sanity checking
 """
 
-from .import_ed5 import (
+from .import_era5 import (
     get_country_bbox,
     download_era5_data,
     download_era5_wind_data_by_bbox,
     generate_time_list,
     generate_date_list,
 )
-from .process import (
+from .process_era5 import (
     calculate_wind_speed,
     read_era5_netcdf,
     calculate_mean_over_time_values,
