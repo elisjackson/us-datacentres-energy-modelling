@@ -1,5 +1,6 @@
 from dash import Dash, dcc, html
 import dash_bootstrap_components as dbc
+import pandas as pd
 
 import src_plotly.map_callbacks as map_callbacks
 import src_plotly.wind_profile as wind_profile
@@ -70,8 +71,8 @@ accordion = dbc.Accordion(
                                 html.Div(
                                     [
                                         html.Span(
-                                            "Wind profile — click the curve to set hub height (m)",
-                                            className="text-light small",
+                                            "Wind data",
+                                            className="h4"
                                         ),
                                         dcc.Store(id="hub-height", data=100),
                                         dcc.Graph(
@@ -81,12 +82,30 @@ accordion = dbc.Accordion(
                                         ),
                                     ],
                                 ),
+                                html.Div(
+                                    [
+                                        html.Span(
+                                            "Solar data",
+                                            className="h4"
+                                        ),
+                                        dbc.Table.from_dataframe(
+                                            pd.DataFrame({"Solar data": ["1", "2", "3"]}),
+                                            id="solar-data-table",
+                                        ),
+                                        # dcc.Store(id="hub-height", data=100),
+                                        # dcc.Graph(
+                                        #     id="wind-profile-graph",
+                                        #     style={"height": "300px"},
+                                        #     config={"displayModeBar": False},
+                                        # ),
+                                    ],
+                                ),
                                 html.Pre(id="click-data"),
                             ],
                             width=4,
-                        )
-                    ]
-                )
+                        ),
+                    ],
+                ),
             ],
             title="Item 1",
         ),
