@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 
 import pandas as pd
+import geopandas as gpd
 import plotly.express as px
 import plotly.graph_objects as go
 from dash import Input, Output, State
@@ -48,24 +49,39 @@ def _center_from_geojson(geojson):
 
 # Cache for loaded GeoJSON + derived data; key = (filepath, color_on)
 _geo_cache = {}
+_gdf_cache = {}
 
+def _get_gdf_data(country: str):
+    """Load GDF once per country, cache result."""
+    cache_key = country
+    filepath = DATA_DIR / f"map_{country}_2025.geojson"
+
+    if cache_key in _gdf_cache:
+        return _gdf_cache[cache_key]
+
+    with open(filepath, "r") as f:
+        gdf = gpd.read_file(f)
+
+    # check gdf is in EPSG:4326
+    print(gdf.crs)
+    if gdf.crs != "EPSG:4326":
+        raise ValueError(f"GDF is not in EPSG:4326 for country {country}")
+
+    _gdf_cache[cache_key] = gdf
+    return gdf
 
 def _get_geo_data(filepath, color_on, country):
     """Load GeoJSON once per (filepath, color_on), build df, center, and base figure (no highlight); cache result."""
     cache_key = (filepath, color_on)
+    # print(f"cache_key: {cache_key}")
     if cache_key in _geo_cache:
         return _geo_cache[cache_key]
-    with open(filepath, "r") as f:
-        geojson = json.load(f)
-    features = geojson["features"]
-    for i, feat in enumerate(features):
-        feat["id"] = i
-    df = pd.DataFrame(
-        {
-            "id": range(len(features)),
-            color_on: [f["properties"][color_on] for f in features],
-        }
-    )
+
+    gdf = _get_gdf_data(country)
+    gdf = gdf.reset_index(names="id")
+    geojson = json.loads(gdf.to_json())
+
+    df = gdf.drop(columns="geometry")[["id", color_on]]
 
     if country == "United States":
         center = {"lat": 39.19, "lon": -98.45}
@@ -141,6 +157,7 @@ def make_base_figure(radio_selection, country):
         color_on = "ssrd"
     else:
         raise ValueError(f"Radio selection {radio_selection} not supported")
+
     geo_data = _get_geo_data(filepath, color_on, country)
     base_fig = geo_data["base_figure"]
     max_wind_speed = float(geo_data["df"][color_on].max())
@@ -149,6 +166,7 @@ def make_base_figure(radio_selection, country):
 
 def register_callbacks(app):
     """Register map-related Dash callbacks. Call from main after creating the app."""
+
     @app.callback(
         [
             Output("map", "figure"),
