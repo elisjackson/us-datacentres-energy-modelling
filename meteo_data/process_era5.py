@@ -25,6 +25,23 @@ from pyogrio.errors import DataSourceError
 logger = logging.getLogger(__name__)
 
 
+GPKG_DIR = r"C:\Users\Elis\repos\us-datacentres\data\downloads\shapefiles"
+COUNTRY_GPKG_CONFIG = {
+    "United Kingdom": {
+        "filename": "Countries_December_2024_Boundaries_UK_BUC_-4247675800557514417.gpkg",
+        "layer": "CTRY_DEC_2024_UK_BUC",
+        "crs_epsg": 27700,
+        "filter_to_main_territory": False,
+    },
+    "Other": {
+        "filename": "geoBoundariesCGAZ_ADM0.gpkg",
+        "layer": "globalADM0",
+        "crs_epsg": 4326,
+        "filter_to_main_territory": True,
+    },
+}
+
+
 def calculate_wind_speed(u: np.ndarray, v: np.ndarray) -> np.ndarray:
     """
     Calculate wind speed from u and v components.
@@ -549,7 +566,8 @@ def process_era5_to_geojson(
     output_path: Optional[Union[str, Path]] = None,
     polygon_method: Literal["grid", "voronoi"] = "grid",
     time_dim: str = "valid_time",
-    max_polygons: Union[int, None] = None
+    max_polygons: Union[int, None] = None,
+    country: str = None
 ) -> gpd.GeoDataFrame:
     """
     Process ERA5 NetCDF file to GeoJSON format.
@@ -576,7 +594,7 @@ def process_era5_to_geojson(
     logger.info("Calculating mean wind speed")
     ds_time_mean = calculate_mean_over_time_values(
         ds,
-        vals_to_mean=["ssrd", "wind_speed_100"],
+        vals_to_mean=["ssrd", "fdir", "wind_speed_100"],
         time_dim=time_dim
         )
     
@@ -625,6 +643,45 @@ def process_era5_to_geojson(
         lon_spacing=grid_lon_spacing,
         lat_spacing=grid_lat_spacing,
     )
+
+    logger.info("Adding on/offshore flag")
+    logger.info("Getting country gpkg config")
+    country_gpkg_config = COUNTRY_GPKG_CONFIG.get(country, COUNTRY_GPKG_CONFIG["Other"])
+    country_gpkg_path = Path(GPKG_DIR) / country_gpkg_config["filename"]
+
+    logger.info(f"Reading country gpkg: {country_gpkg_path}")
+    country_gdf = gpd.read_file(country_gpkg_path, layer=country_gpkg_config["layer"])
+    if not country_gdf.crs:
+        country_gdf = country_gdf.set_crs(epsg=country_gpkg_config["crs_epsg"], allow_override=True)
+    
+    if country_gpkg_config["filter_to_main_territory"]:
+        country_gdf = country_gdf[country_gdf["shapeName"] == country]
+
+    country_gdf = country_gdf.dissolve()
+
+    gdf = gdf.to_crs(country_gdf.crs)
+    # Preserve gdf index as column so we can group overlay result by original cell
+    # (overlay can produce multiple rows per gdf cell when the country boundary splits a cell)
+    gdf_with_ix = gdf.copy()
+    gdf_with_ix["_gdf_ix"] = gdf_with_ix.index
+    intersection = gpd.overlay(gdf_with_ix, country_gdf, how='intersection')
+    intersection['intersect_area'] = intersection.geometry.area
+    # Sum intersection area per original gdf row (one cell can yield multiple fragments)
+    total_intersect = intersection.groupby("_gdf_ix", as_index=True)["intersect_area"].sum()
+    gdf['orig_area'] = gdf.geometry.area
+    merged = gdf.merge(total_intersect.rename("intersect_area"), left_index=True, right_index=True, how='left')
+    merged['percent_overlap'] = (merged['intersect_area'] / merged['orig_area']) * 100
+
+    # add on/offshore flag
+    merged['onshore'] = merged['percent_overlap'] > 10
+    gdf = gdf.merge(merged['onshore'], left_index=True, right_index=True, how='left')
+
+    # set ssrd and fdir to null if onshore is false
+    # gdf['ssrd'] = np.where(gdf['onshore'], gdf['ssrd'], None)
+    # gdf['fdir'] = np.where(gdf['onshore'], gdf['fdir'], None)
+
+    gdf.drop(columns=['orig_area'], inplace=True)
+    gdf.to_crs(epsg=4326, inplace=True)
     
     if output_path is not None:
         output_path = Path(output_path)
@@ -640,7 +697,8 @@ def process_era5_zip_to_geojson(
     output_path: Optional[Union[str, Path]] = None,
     polygon_method: Literal["grid", "voronoi"] = "grid",
     time_dim: str = "valid_time",
-    max_polygons: Union[int, None] = None
+    max_polygons: Union[int, None] = None,
+    country: str = None
 ) -> gpd.GeoDataFrame:
     """
     Process ERA5 zip file (containing NetCDF) to GeoJSON format.
@@ -653,7 +711,9 @@ def process_era5_zip_to_geojson(
         output_path: Optional path to save GeoJSON file
         polygon_method: Method to convert points to polygons ("grid" or "voronoi")
         time_dim: Name of time dimension in dataset
-        
+        max_polygons: If set, aggregate (average) nearby points so output has
+            at most this many polygons.
+        country: Country name (used for on/offshore flag)
     Returns:
         GeoDataFrame with polygon geometries and one column per data variable
     """
@@ -662,5 +722,6 @@ def process_era5_zip_to_geojson(
         output_path=output_path,
         polygon_method=polygon_method,
         time_dim=time_dim,
-        max_polygons=max_polygons
+        max_polygons=max_polygons,
+        country=country
     )

@@ -20,6 +20,4 @@ Development notes for importing and processing meteo data, in preparation for us
 
 ### TODO - updated 01/02/26
 
-- Debug US issue
-- Run fully (all 12 months) for US
 - Run for Canada

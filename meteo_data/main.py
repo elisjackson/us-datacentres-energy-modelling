@@ -138,7 +138,8 @@ def main(
             zip_path=clip_path,
             output_path=geojson_path,
             polygon_method="grid",  # or "voronoi",
-            max_polygons=12000
+            max_polygons=12000,
+            country=country
         )
         logger.info(f"Processing complete: {geojson_path}")
         logger.info(f"Number of polygons: {len(gdf)}")
@@ -156,7 +157,7 @@ def main(
         sanity_check_geojson(
             geojson_path=geojson_path,
             output_plot_path=plot_path,
-            backend="plotly",
+            backend="explore",
             # color_on="wind_speed_100"
             color_on="ssrd"
         )
@@ -172,14 +173,15 @@ if __name__ == "__main__":
     # Configuration
     # Set month and day to None to download/process entire year
     # Country name must match a key in data/processed/calculated_country_bbox.json
-    country = "United States"
+    country = "United Kingdom"
     year = 2025
     # month = None  # Set to None for full year, or specify month (1-12)
     # day = None    # Set to None for full month/year, or specify day (1-31)
     # main(country, year, month, day)
 
-    months = [1, 2]
+    months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     days = None
+
     all_zip_paths = []
     for month in months:
         try:
@@ -226,10 +228,11 @@ if __name__ == "__main__":
                                 )
                             }
                         )
-
+    
     data_dir = Path("data")
     zip_path = data_dir / "processed" / "by_country" / "era5_clipped" / f"{country}_{year}.zip"
-    # md_process.save_dataset_to_zip(ds_combined, zip_path, f"{country}_{year}.nc")
+    logger.info(f"Saving combined dataset to zip: {zip_path}")
+    md_process.save_dataset_to_zip(ds_combined, zip_path, f"{country}_{year}.nc")
 
     processed_dir = data_dir / "processed"
     processed_dir.mkdir(exist_ok=True)
@@ -241,7 +244,8 @@ if __name__ == "__main__":
             zip_path=zip_path,
             output_path=geojson_path,
             polygon_method="grid",  # or "voronoi",
-            max_polygons=12000
+            max_polygons=12000,
+            country=country
         )
         logger.info(f"Processing complete: {geojson_path}")
         logger.info(f"Number of polygons: {len(gdf)}")
@@ -257,9 +261,11 @@ if __name__ == "__main__":
         sanity_check_geojson(
             geojson_path=geojson_path,
             output_plot_path=plot_path,
-            backend="plotly",
-            color_on="wind_speed_100"
+            backend="explore",
+            # color_on="wind_speed_100"
             # color_on="ssrd"
+            # color_on="fdir"
+            color_on="onshore"
         )
         logger.info(f"Plot saved: {plot_path}")
     except Exception as e:
