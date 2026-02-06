@@ -135,6 +135,22 @@ def register_callbacks(app):
                 plot_bgcolor="rgba(0,0,0,0)",
                 font=dict(color="#e0e0e0"),
             )
+        if click_data.get("points") and click_data["points"][0].get("curveNumber") == 1:
+            return go.Figure().update_layout(
+                title="Wind profile (log law)",
+                annotations=[
+                    dict(
+                        text="Click an onshore map cell",
+                        x=0.5,
+                        y=0.5,
+                        showarrow=False,
+                        font=dict(color="#e0e0e0", size=14),
+                    )
+                ],
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#e0e0e0"),
+            )
         try:
             v1 = click_data["points"][0].get("z")
             v1 = 5.0 if v1 is None else float(v1)
