@@ -113,18 +113,19 @@ def register_callbacks(app):
     """
     @app.callback(
         Output("wind-profile-graph", "figure"),
-        Input("map", "clickData"),
+        Input("wind-click-store", "data"),
         Input("hub-height", "data"),
         State("map-wind-max", "data"),
     )
-    def update_wind_profile(click_data, hub_height, map_wind_max):
+    def update_wind_profile(wind_click_data, hub_height, map_wind_max):
         hub_height = 100 if hub_height is None else hub_height
+        click_data = wind_click_data
         if not click_data:
             return go.Figure().update_layout(
                 title="Wind profile (log law)",
                 annotations=[
                     dict(
-                        text="Click a map cell",
+                        text="Select a Wind location on the map",
                         x=0.5,
                         y=0.5,
                         showarrow=False,

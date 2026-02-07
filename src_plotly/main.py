@@ -4,11 +4,13 @@ import pandas as pd
 
 import src_plotly.map_callbacks as map_callbacks
 import src_plotly.wind_profile as wind_profile
+import src_plotly.solar_data_table as solar_data_table
 
 external_stylesheets = [dbc.themes.DARKLY]
 app = Dash(__name__, external_stylesheets=external_stylesheets)
 map_callbacks.register_callbacks(app)
 wind_profile.register_callbacks(app)
+solar_data_table.register_callbacks(app)
 
 # WSGI entry point for cloud (e.g. gunicorn src_plotly.main:server). Run from repo root.
 server = app.server
@@ -16,7 +18,7 @@ server = app.server
 
 radioitems = html.Div(
     [
-        dbc.Label("Choose one"),
+        dbc.Label("Select map layer"),
         dbc.RadioItems(
             options=[
                 {"label": "Data Centre & PV location", "value": "PV"},
@@ -30,12 +32,6 @@ radioitems = html.Div(
     className="mb-3",
 )
 
-items = [
-    dbc.DropdownMenuItem("Item 1"),
-    dbc.DropdownMenuItem("Item 2"),
-    dbc.DropdownMenuItem("Item 3"),
-]
-
 accordion = dbc.Accordion(
     [
         dbc.AccordionItem(
@@ -48,11 +44,14 @@ accordion = dbc.Accordion(
                                     [
                                         dbc.Col(radioitems),
                                         dbc.Col(
-                                            dcc.Dropdown(
-                                                ['United Kingdom', 'United States'],
-                                                'United Kingdom',
-                                                id='country-dropdown'
-                                            )
+                                            [
+                                                html.Label("Select country", className="form-label"),
+                                                dcc.Dropdown(
+                                                    ['United Kingdom', 'United States'],
+                                                    'United Kingdom',
+                                                    id='country-dropdown'
+                                                ),
+                                            ]
                                         ),
                                     ],
                                 ),
@@ -62,6 +61,8 @@ accordion = dbc.Accordion(
                                 dcc.Store(id="last-country-store"),
                                 dcc.Store(id="pv-click-store"),
                                 dcc.Store(id="wind-click-store"),
+                                dcc.Store(id="pv-location-data"),
+                                dcc.Store(id="wind-location-data"),
                                 dcc.Graph(
                                     id="map",
                                     style={"height": "600px"},
@@ -83,10 +84,7 @@ accordion = dbc.Accordion(
                                             "Solar data",
                                             className="h4"
                                         ),
-                                        dbc.Table.from_dataframe(
-                                            pd.DataFrame({"Solar data": ["1", "2", "3"]}),
-                                            id="solar-data-table",
-                                        ),
+                                        html.Div(id="solar-data-table"),
                                     ],
                                 ),
                                 html.Div(
@@ -103,30 +101,25 @@ accordion = dbc.Accordion(
                                         ),
                                     ],
                                 ),
-                                html.Div([
-                                    html.Div("PV location:", className="fw-bold"),
-                                    html.Pre(id="pv-click-data"),
-                                    html.Div("Wind location:", className="fw-bold mt-2"),
-                                    html.Pre(id="wind-click-data"),
-                                ]),
                             ],
                             width=4,
+                            className="d-flex flex-column justify-content-evenly gap-3",
                         ),
                     ],
                 ),
             ],
-            title="Item 1",
+            title="Select location",
         ),
         dbc.AccordionItem(
             [
                 html.P("This is the content of the second section"),
                 dbc.Button("Don't click me!", color="danger"),
             ],
-            title="Item 2",
+            title="Optimiser parameters",
         ),
         dbc.AccordionItem(
             "This is the content of the third section",
-            title="Item 3",
+            title="Results",
         ),
     ],
     active_item=0,
@@ -168,4 +161,4 @@ app.layout = dbc.Container(
 
 if __name__ == "__main__":
     # Local: run from repo root with python -m src_plotly.main (so src_plotly imports work)
-    app.run(debug=False)
+    app.run(debug=True)

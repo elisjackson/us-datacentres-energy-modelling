@@ -18,6 +18,67 @@
     background-color: #1e1e2f;
 }
 
+/* dcc.Dropdown dark theme – match DARKLY bootstrap theme */
+.Select-control {
+    background-color: #2c3e50 !important;
+    border-color: #34495e !important;
+    color: #ecf0f1 !important;
+}
+.Select-value-label,
+.Select-placeholder {
+    color: #ecf0f1 !important;
+}
+.Select-input > input {
+    color: #ecf0f1 !important;
+}
+.Select-menu-outer {
+    background-color: #2c3e50 !important;
+    border-color: #34495e !important;
+}
+.Select-option {
+    background-color: #2c3e50 !important;
+    color: #ecf0f1 !important;
+}
+.Select-option.is-focused {
+    background-color: #34495e !important;
+    color: #ecf0f1 !important;
+}
+.Select-option.is-selected {
+    background-color: #3498db !important;
+    color: #ecf0f1 !important;
+}
+.Select-arrow {
+    border-top-color: #ecf0f1 !important;
+}
+
+/* Accordion dark theme – match DARKLY */
+.accordion,
+.accordion-item {
+    border-color: #34495e !important;
+}
+.accordion-button {
+    background-color: #2c3e50 !important;
+    color: #ecf0f1 !important;
+    border-color: #34495e !important;
+}
+.accordion-button:not(.collapsed) {
+    background-color: #2c3e50 !important;
+    color: #ecf0f1 !important;
+    box-shadow: none;
+}
+.accordion-button:focus {
+    border-color: #34495e;
+    box-shadow: none;
+}
+.accordion-button::after {
+    filter: brightness(0) invert(1);
+}
+.accordion-body {
+    background-color: #222;
+    color: #ecf0f1;
+    border-color: #34495e;
+}
+
 /* Plotly colorbar text – map backend may ignore tickfont/title font, so override with CSS */
 #map .colorbar text,
 #map .cbtitle,

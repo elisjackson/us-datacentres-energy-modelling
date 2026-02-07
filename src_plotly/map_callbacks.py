@@ -94,6 +94,18 @@ def _get_gdf_data(country: str):
     _gdf_cache[cache_key] = gdf
     return gdf
 
+
+def _gdf_row_from_click(gdf, click_data):
+    """Extract the clicked row from gdf. Returns dict or None. Use with clickData points[0].location."""
+    if not click_data or not click_data.get("points"):
+        return None
+    loc = click_data["points"][0].get("location")
+    if loc is None:
+        return None
+    row = gdf.loc[gdf["id"] == loc]
+    return row.drop(columns="geometry").iloc[0].to_dict() if not row.empty else None
+
+
 def _get_geo_data(filepath, color_on, country):
     """Load GeoJSON once per (filepath, color_on), build df, center, and base figure; cache result."""
     if color_on == "wind_speed_100":
@@ -262,7 +274,8 @@ def make_base_figure(radio_selection, country, geo_data=None):
 
     geo_data = geo_data or _get_geo_data(filepath, color_on, country)
     base_fig = geo_data["base_figure"]
-    max_wind_speed = 50 # float(geo_data["df"]["wind_speed_100"].max())
+    geo_wind = _get_geo_data(filepath, "wind_speed_100", country)
+    max_wind_speed = float(geo_wind["df"]["wind_speed_100"].max())
     return go.Figure(base_fig), max_wind_speed
 
 
@@ -402,18 +415,28 @@ def register_callbacks(app):
             return no_update, click_data
 
     @app.callback(
-        Output("pv-click-data", "children"),
+        Output("pv-location-data", "data"),
         Input("pv-click-store", "data"),
+        State("country-dropdown", "value"),
     )
-    def display_pv_click_data(click_data):
-        return json.dumps(click_data, indent=2) if click_data else "(none selected)"
+    def store_pv_location_data(pv_click, country):
+        """Store all GDF columns for the selected PV location."""
+        if not pv_click or not country:
+            return None
+        gdf = _get_gdf_data(country).reset_index(names="id")
+        return _gdf_row_from_click(gdf, pv_click)
 
     @app.callback(
-        Output("wind-click-data", "children"),
+        Output("wind-location-data", "data"),
         Input("wind-click-store", "data"),
+        State("country-dropdown", "value"),
     )
-    def display_wind_click_data(click_data):
-        return json.dumps(click_data, indent=2) if click_data else "(none selected)"
+    def store_wind_location_data(wind_click, country):
+        """Store all GDF columns for the selected Wind location."""
+        if not wind_click or not country:
+            return None
+        gdf = _get_gdf_data(country).reset_index(names="id")
+        return _gdf_row_from_click(gdf, wind_click)
 
     @app.callback(
         Output("map-helper-text", "children"),
