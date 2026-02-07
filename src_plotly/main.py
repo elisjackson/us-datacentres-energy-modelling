@@ -19,10 +19,10 @@ radioitems = html.Div(
         dbc.Label("Choose one"),
         dbc.RadioItems(
             options=[
-                {"label": "Wind", "value": "Wind"},
-                {"label": "PV", "value": "PV"},
+                {"label": "Data Centre & PV location", "value": "PV"},
+                {"label": "Wind location", "value": "Wind"},
             ],
-            value="Wind",
+            value="PV",
             id="radioitems-input",
             inline=True,
         ),
@@ -56,6 +56,7 @@ accordion = dbc.Accordion(
                                         ),
                                     ],
                                 ),
+                                html.Div("Some text", className="mb-3", id="map-helper-text"),
                                 dcc.Store(id="figure-store"),
                                 dcc.Store(id="map-wind-max"),
                                 dcc.Graph(
@@ -65,6 +66,11 @@ accordion = dbc.Accordion(
                                 )
                             ],
                             width=8,
+                            style={
+                                "backgroundColor": "rgba(255,255,255,0.06)",
+                                "borderRadius": "8px",
+                                "padding": "1rem"
+                            },
                         ),
                         dbc.Col(
                             [
@@ -92,12 +98,6 @@ accordion = dbc.Accordion(
                                             pd.DataFrame({"Solar data": ["1", "2", "3"]}),
                                             id="solar-data-table",
                                         ),
-                                        # dcc.Store(id="hub-height", data=100),
-                                        # dcc.Graph(
-                                        #     id="wind-profile-graph",
-                                        #     style={"height": "300px"},
-                                        #     config={"displayModeBar": False},
-                                        # ),
                                     ],
                                 ),
                                 html.Pre(id="click-data"),

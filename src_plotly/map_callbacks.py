@@ -88,7 +88,6 @@ def _get_gdf_data(country: str):
         gdf = gpd.read_file(f)
 
     # check gdf is in EPSG:4326
-    print(gdf.crs)
     if gdf.crs != "EPSG:4326":
         raise ValueError(f"GDF is not in EPSG:4326 for country {country}")
 
@@ -304,3 +303,15 @@ def register_callbacks(app):
             if clickData["points"][0].get("curveNumber") == 1:
                 return no_update
         return json.dumps(clickData, indent=2) if clickData else ""
+
+    @app.callback(
+        Output("map-helper-text", "children"),
+        Input("radioitems-input", "value"),
+    )
+    def display_map_helper_text(radio_selection):
+        if radio_selection == "Wind":
+            return "Select a location for the wind farm. This may be different to the data centre location."
+        elif radio_selection == "PV":
+            return "Select a location for the data centre. Solar PV will be assumed to be co-located."
+        else:
+            return "Placeholder text"
