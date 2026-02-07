@@ -209,8 +209,43 @@ def _get_geo_data(filepath, color_on, country):
     return _geo_cache[cache_key]
 
 
-def make_base_figure(radio_selection, country):
-    """Base choropleth only (no highlight). Returns (figure, max_wind_speed) from the map data."""
+def _add_highlight_trace(fig, geojson, selected_id, z_value, zmin, zmax, color_on):
+    """Add a highlight trace for the selected polygon to the figure."""
+    if not geojson or "features" not in geojson:
+        return
+    features = geojson["features"]
+    feature = None
+    if isinstance(selected_id, int) and 0 <= selected_id < len(features):
+        feature = features[selected_id]
+    else:
+        for f in features:
+            if f.get("id") == selected_id:
+                feature = f
+                break
+    if feature is None:
+        return
+    highlight_geojson = {"type": geojson["type"], "features": [feature]}
+    wind_color = "rgba(120,180,160,0.5)"
+    pv_color = "rgba(255,180,80,0.5)"
+    highlight_color = pv_color if color_on == "ssrd" else wind_color
+    highlight_trace = go.Choroplethmap(
+        geojson=highlight_geojson,
+        locations=[selected_id],
+        z=[z_value],
+        featureidkey="id",
+        colorscale=[[0, highlight_color], [1, highlight_color]],
+        zmin=zmin,
+        zmax=zmax,
+        showscale=False,
+        hoverinfo="skip",
+        marker=dict(opacity=1, line=dict(width=1, color="#282828")),
+        name="map_highlight",
+    )
+    fig.add_trace(highlight_trace)
+
+
+def make_base_figure(radio_selection, country, geo_data=None):
+    """Base choropleth only (no highlight). Returns (figure, max_wind_speed, geo_data) from the map data."""
     if country == "United Kingdom":
         filepath = DATA_DIR / f"map_{country}_2025.geojson"
     elif country == "United States":
@@ -225,9 +260,9 @@ def make_base_figure(radio_selection, country):
     else:
         raise ValueError(f"Radio selection {radio_selection} not supported")
 
-    geo_data = _get_geo_data(filepath, color_on, country)
+    geo_data = geo_data or _get_geo_data(filepath, color_on, country)
     base_fig = geo_data["base_figure"]
-    max_wind_speed = float(geo_data["df"][color_on].max())
+    max_wind_speed = 50 # float(geo_data["df"]["wind_speed_100"].max())
     return go.Figure(base_fig), max_wind_speed
 
 
@@ -239,18 +274,61 @@ def register_callbacks(app):
             Output("map", "figure"),
             Output("figure-store", "data"),
             Output("map-wind-max", "data"),
+            Output("last-country-store", "data"),
+            Output("pv-click-store", "data", allow_duplicate=True),
+            Output("wind-click-store", "data", allow_duplicate=True),
         ],
         Input("radioitems-input", "value"),
         Input("country-dropdown", "value"),
+        State("map", "relayoutData"),
+        State("last-country-store", "data"),
+        State("pv-click-store", "data"),
+        State("wind-click-store", "data"),
+        prevent_initial_call="initial_duplicate",
     )
-    def update_map_and_store(radio_selection, country):
-        """Build base figure when country/radio change; store it and max wind for profile axis."""
+    def update_map_and_store(
+        radio_selection, country, relayout_data, last_country, pv_click, wind_click
+    ):
+        """Build base figure when country/radio change; preserve zoom/center when only layer changes."""
         fig, max_wind = make_base_figure(radio_selection, country)
-        return fig, fig.to_dict(), max_wind
+        country_changed = (last_country is None) or (country != last_country)
+        if not country_changed and relayout_data:
+            for subplot in ("mapbox", "geo", "map"):
+                center = relayout_data.get(f"{subplot}.center")
+                zoom = relayout_data.get(f"{subplot}.zoom")
+                if center is not None and zoom is not None:
+                    fig.update_layout(**{subplot: dict(center=center, zoom=zoom)})
+                    break
+        pv_out, wind_out = pv_click, wind_click
+        if country_changed:
+            pv_out, wind_out = None, None
+        filepath = str(DATA_DIR / f"map_{country}_2025.geojson")
+        if country == "United States":
+            filepath = str(DATA_DIR / f"map_{country}_2025_01_01.geojson")
+        geo_pv = _get_geo_data(filepath, "ssrd", country)
+        geo_wind = _get_geo_data(filepath, "wind_speed_100", country)
+        for stored_click, gdata, color_on in [
+            (pv_click, geo_pv, "ssrd"),
+            (wind_click, geo_wind, "wind_speed_100"),
+        ]:
+            if stored_click and stored_click.get("points"):
+                pt = stored_click["points"][0]
+                if pt.get("curveNumber") != 1:
+                    try:
+                        loc = pt.get("location")
+                        z_val = pt.get("z", 0) or 0
+                        zmin = float(gdata["df"][color_on].min())
+                        zmax = float(gdata["df"][color_on].max())
+                        _add_highlight_trace(
+                            fig, gdata["geojson"], loc, z_val, zmin, zmax, color_on
+                        )
+                    except (KeyError, TypeError, ValueError):
+                        pass
+        return fig, fig.to_dict(), max_wind, country, pv_out, wind_out
 
     app.clientside_callback(
         """
-        function(clickData, figureData) {
+        function(clickData, figureData, radioSelection, pvClick, windClick) {
             if (!clickData || !figureData || !figureData.data || !figureData.data[0]) {
                 return window.dash_clientside.no_update;
             }
@@ -258,51 +336,84 @@ def register_callbacks(app):
             if (curveNumber === 1) {
                 return window.dash_clientside.no_update;
             }
-            var selectedId = clickData.points[0].location;
             var baseTrace = figureData.data[0];
             var geo = baseTrace.geojson;
-            if (!geo || !geo.features || !geo.features[selectedId]) {
+            if (!geo || !geo.features) {
                 return window.dash_clientside.no_update;
             }
-            var feature = geo.features[selectedId];
-            var value = baseTrace.z && baseTrace.z[selectedId] != null ? baseTrace.z[selectedId] : 0;
-            var highlightGeojson = { type: geo.type, features: [feature] };
-            var highlightTrace = {
-                type: 'choroplethmap',
-                geojson: highlightGeojson,
-                locations: [selectedId],
-                z: [value],
-                featureidkey: 'id',
-                marker: { opacity: 1, line: { width: 1, color: '#282828' } },
-                showscale: false,
-                hoverinfo: 'skip',
-                colorscale: [[0, 'rgba(120,180,160,0.5)'], [1, 'rgba(120,180,160,0.5)']]
-            };
-            if (baseTrace.zmin != null) highlightTrace.zmin = baseTrace.zmin;
-            if (baseTrace.zmax != null) highlightTrace.zmax = baseTrace.zmax;
-            if (baseTrace.zauto === false) highlightTrace.zauto = false;
-            var nTraces = figureData.data.length;
-            var newData = JSON.parse(JSON.stringify(figureData.data.slice(0, nTraces)));
-            newData.push(highlightTrace);
-            var layout = figureData.layout || {};
-            return { data: newData, layout: layout };
+            var windColor = 'rgba(120,180,160,0.5)';
+            var pvColor = 'rgba(255,180,80,0.5)';
+            var pvData = (radioSelection === 'PV') ? clickData : pvClick;
+            var windData = (radioSelection === 'Wind') ? clickData : windClick;
+            var baseTraces = figureData.data.filter(function(t) { return t.name !== 'map_highlight'; });
+            var newData = JSON.parse(JSON.stringify(baseTraces));
+            function addHighlight(clickObj, color) {
+                if (!clickObj || typeof clickObj !== 'object' || !Array.isArray(clickObj.points) || !clickObj.points[0] || clickObj.points[0].curveNumber === 1) return;
+                var loc = clickObj.points[0].location;
+                if (!geo.features[loc]) return;
+                var zVal = clickObj.points[0].z != null ? clickObj.points[0].z : 0;
+                var feat = geo.features[loc];
+                var hTrace = {
+                    type: 'choroplethmap',
+                    geojson: { type: geo.type, features: [JSON.parse(JSON.stringify(feat))] },
+                    locations: [loc],
+                    z: [zVal],
+                    featureidkey: 'id',
+                    marker: { opacity: 1, line: { width: 1, color: '#282828' } },
+                    showscale: false,
+                    hoverinfo: 'skip',
+                    colorscale: [[0, color], [1, color]],
+                    name: 'map_highlight'
+                };
+                if (typeof baseTrace.zmin === 'number') hTrace.zmin = baseTrace.zmin;
+                if (typeof baseTrace.zmax === 'number') hTrace.zmax = baseTrace.zmax;
+                if (baseTrace.zauto === false) hTrace.zauto = false;
+                newData.push(JSON.parse(JSON.stringify(hTrace)));
+            }
+            addHighlight(pvData, pvColor);
+            addHighlight(windData, windColor);
+            var layout = figureData.layout ? JSON.parse(JSON.stringify(figureData.layout)) : {};
+            return JSON.parse(JSON.stringify({ data: newData, layout: layout }));
         }
         """,
         Output("map", "figure", allow_duplicate=True),
         Input("map", "clickData"),
-        State("figure-store", "data"),
+        [State("figure-store", "data"), State("radioitems-input", "value"),
+         State("pv-click-store", "data"), State("wind-click-store", "data")],
         prevent_initial_call=True,
     )
 
     @app.callback(
-        Output("click-data", "children"),
+        [Output("pv-click-store", "data"), Output("wind-click-store", "data")],
         Input("map", "clickData"),
+        State("radioitems-input", "value"),
+        State("pv-click-store", "data"),
+        State("wind-click-store", "data"),
     )
-    def display_click_data(clickData):
-        if clickData and clickData.get("points"):
-            if clickData["points"][0].get("curveNumber") == 1:
-                return no_update
-        return json.dumps(clickData, indent=2) if clickData else ""
+    def save_click_to_store(click_data, radio_selection, pv_click, wind_click):
+        """Save map click to the appropriate store (PV or Wind) based on current layer."""
+        if not click_data or not click_data.get("points"):
+            return no_update, no_update
+        if click_data["points"][0].get("curveNumber") == 1:
+            return no_update, no_update
+        if radio_selection == "PV":
+            return click_data, no_update
+        else:
+            return no_update, click_data
+
+    @app.callback(
+        Output("pv-click-data", "children"),
+        Input("pv-click-store", "data"),
+    )
+    def display_pv_click_data(click_data):
+        return json.dumps(click_data, indent=2) if click_data else "(none selected)"
+
+    @app.callback(
+        Output("wind-click-data", "children"),
+        Input("wind-click-store", "data"),
+    )
+    def display_wind_click_data(click_data):
+        return json.dumps(click_data, indent=2) if click_data else "(none selected)"
 
     @app.callback(
         Output("map-helper-text", "children"),

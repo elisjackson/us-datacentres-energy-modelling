@@ -59,6 +59,9 @@ accordion = dbc.Accordion(
                                 html.Div("Some text", className="mb-3", id="map-helper-text"),
                                 dcc.Store(id="figure-store"),
                                 dcc.Store(id="map-wind-max"),
+                                dcc.Store(id="last-country-store"),
+                                dcc.Store(id="pv-click-store"),
+                                dcc.Store(id="wind-click-store"),
                                 dcc.Graph(
                                     id="map",
                                     style={"height": "600px"},
@@ -77,6 +80,18 @@ accordion = dbc.Accordion(
                                 html.Div(
                                     [
                                         html.Span(
+                                            "Solar data",
+                                            className="h4"
+                                        ),
+                                        dbc.Table.from_dataframe(
+                                            pd.DataFrame({"Solar data": ["1", "2", "3"]}),
+                                            id="solar-data-table",
+                                        ),
+                                    ],
+                                ),
+                                html.Div(
+                                    [
+                                        html.Span(
                                             "Wind data",
                                             className="h4"
                                         ),
@@ -88,19 +103,12 @@ accordion = dbc.Accordion(
                                         ),
                                     ],
                                 ),
-                                html.Div(
-                                    [
-                                        html.Span(
-                                            "Solar data",
-                                            className="h4"
-                                        ),
-                                        dbc.Table.from_dataframe(
-                                            pd.DataFrame({"Solar data": ["1", "2", "3"]}),
-                                            id="solar-data-table",
-                                        ),
-                                    ],
-                                ),
-                                html.Pre(id="click-data"),
+                                html.Div([
+                                    html.Div("PV location:", className="fw-bold"),
+                                    html.Pre(id="pv-click-data"),
+                                    html.Div("Wind location:", className="fw-bold mt-2"),
+                                    html.Pre(id="wind-click-data"),
+                                ]),
                             ],
                             width=4,
                         ),
@@ -160,4 +168,4 @@ app.layout = dbc.Container(
 
 if __name__ == "__main__":
     # Local: run from repo root with python -m src_plotly.main (so src_plotly imports work)
-    app.run(debug=True)
+    app.run(debug=False)
