@@ -95,3 +95,63 @@
     fill: #e0e0e0 !important;
     color: #e0e0e0 !important;
 }
+
+/* Optimiser form: row disabled state + native range slider track visibility */
+.row-disabled .Select-control {
+    opacity: 0.5;
+    pointer-events: none;
+}
+.row-slider-wrapper {
+    width: 100%;
+    min-width: 120px;
+}
+.row-slider-input.form-range {
+    width: 100%;
+    height: 1.25rem;
+    padding: 0;
+    background: transparent;
+    -webkit-appearance: none;
+    appearance: none;
+}
+.row-slider-input.form-range::-webkit-slider-runnable-track {
+    height: 8px;
+    background: #34495e;
+    border-radius: 4px;
+}
+.row-slider-input.form-range::-moz-range-track {
+    height: 8px;
+    background: #34495e;
+    border-radius: 4px;
+}
+.row-slider-input.form-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    margin-top: -5px;
+    background: #3498db;
+    border-radius: 50%;
+    border: 2px solid #ecf0f1;
+    cursor: pointer;
+}
+.row-slider-input.form-range::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #3498db;
+    border-radius: 50%;
+    border: 2px solid #ecf0f1;
+    cursor: pointer;
+}
+.row-disabled .row-slider-input {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Optimiser form: Tier column dropdowns fill column width */
+.optimiser-tier-dropdown-wrapper {
+    width: 100%;
+}
+.optimiser-tier-dropdown-wrapper > div,
+.optimiser-tier-dropdown-wrapper .Select-control {
+    width: 100% !important;
+    max-width: 100%;
+}

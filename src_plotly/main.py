@@ -5,13 +5,16 @@ import pandas as pd
 import src_plotly.map_callbacks as map_callbacks
 import src_plotly.wind_profile as wind_profile
 import src_plotly.solar_data_table as solar_data_table
+import src_plotly.optimiser_form as optimiser_form
 from src_plotly.solar_data_table import solar_data_table_footer
+from src_plotly.optimiser_form import optimiser_form_layout
 
 external_stylesheets = [dbc.themes.DARKLY]
 app = Dash(__name__, external_stylesheets=external_stylesheets)
 map_callbacks.register_callbacks(app)
 wind_profile.register_callbacks(app)
 solar_data_table.register_callbacks(app)
+optimiser_form.register_callbacks(app)
 
 # WSGI entry point for cloud (e.g. gunicorn src_plotly.main:server). Run from repo root.
 server = app.server
@@ -111,20 +114,21 @@ accordion = dbc.Accordion(
                 ),
             ],
             title="Select location",
+            item_id="accordion-location",
         ),
         dbc.AccordionItem(
-            [
-                html.P("This is the content of the second section"),
-                dbc.Button("Don't click me!", color="danger"),
-            ],
+            [optimiser_form_layout()],
             title="Optimiser parameters",
+            item_id="accordion-parameters",
         ),
         dbc.AccordionItem(
-            "This is the content of the third section",
+            html.Div(id="optimiser-results-content", className="p-2"),
             title="Results",
+            item_id="accordion-results",
         ),
     ],
-    active_item=0,
+    id="main-accordion",
+    active_item="accordion-location",
 )
 
 sidebar = html.Div(
