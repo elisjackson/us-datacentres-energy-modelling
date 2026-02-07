@@ -1,3 +1,11 @@
+/* Reusable small grey helper text (footnotes, captions, etc.) */
+.text-muted-small {
+    font-size: 0.8rem;
+    color: #95a5a6;
+    margin-bottom: 0;
+    line-height: 1.4;
+}
+
 /* Main content spacing */
 .content {
     padding: 2rem 3rem;

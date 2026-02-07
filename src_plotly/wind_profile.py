@@ -32,6 +32,53 @@ def calculate_wind_profile(v1, h1, z0):
     return heights, wind_speeds
 
 
+def make_empty_wind_profile_figure():
+    """
+    Build an empty Plotly figure with axes and layout matching the wind profile.
+    Used as placeholder before a Wind location is selected.
+    """
+    fig = go.Figure()
+    fig.update_layout(
+        title="",
+        xaxis_title="Wind speed (m/s)",
+        yaxis_title="Height (m)",
+        xaxis=dict(
+            range=[0, 15],
+            tickfont=dict(color="#e0e0e0"),
+            title_font=dict(color="#e0e0e0"),
+            gridcolor="rgba(255,255,255,0.1)",
+            zerolinecolor="rgba(255,255,255,0.2)",
+            fixedrange=True,
+        ),
+        yaxis=dict(
+            range=[0, 250],
+            tickfont=dict(color="#e0e0e0"),
+            title_font=dict(color="#e0e0e0"),
+            gridcolor="rgba(255,255,255,0.1)",
+            zerolinecolor="rgba(255,255,255,0.2)",
+            fixedrange=True,
+        ),
+        margin=dict(t=40, b=40, l=50, r=20),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#e0e0e0"),
+        title_font=dict(color="#e0e0e0"),
+        dragmode=False,
+        annotations=[
+            dict(
+                text="Select a Wind location on the map",
+                x=0.5,
+                y=0.5,
+                xref="paper",
+                yref="paper",
+                showarrow=False,
+                font=dict(color="#95a5a6", size=14),
+            )
+        ],
+    )
+    return fig
+
+
 def make_wind_profile_figure(heights, wind_speeds, x_max=None, hub_height=None):
     """
     Build a Plotly figure for wind profile (no .show()); for use in Dash.
@@ -58,7 +105,7 @@ def make_wind_profile_figure(heights, wind_speeds, x_max=None, hub_height=None):
     if x_max is not None:
         xaxis["range"] = [0, x_max]
     layout_kw = dict(
-        title="Wind profile (log law)",
+        title="",
         xaxis_title="Wind speed (m/s)",
         yaxis_title="Height (m)",
         margin=dict(t=40, b=40, l=50, r=20),
@@ -121,37 +168,24 @@ def register_callbacks(app):
         hub_height = 100 if hub_height is None else hub_height
         click_data = wind_click_data
         if not click_data:
-            return go.Figure().update_layout(
-                title="Wind profile (log law)",
-                annotations=[
-                    dict(
-                        text="Select a Wind location on the map",
-                        x=0.5,
-                        y=0.5,
-                        showarrow=False,
-                        font=dict(color="#e0e0e0", size=14),
-                    )
-                ],
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(color="#e0e0e0"),
-            )
+            fig = make_empty_wind_profile_figure()
+            return fig
         if click_data.get("points") and click_data["points"][0].get("curveNumber") == 1:
-            return go.Figure().update_layout(
-                title="Wind profile (log law)",
+            fig = make_empty_wind_profile_figure()
+            fig.update_layout(
                 annotations=[
                     dict(
                         text="Click an onshore map cell",
                         x=0.5,
                         y=0.5,
+                        xref="paper",
+                        yref="paper",
                         showarrow=False,
-                        font=dict(color="#e0e0e0", size=14),
+                        font=dict(color="#95a5a6", size=14),
                     )
                 ],
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                font=dict(color="#e0e0e0"),
             )
+            return fig
         try:
             v1 = click_data["points"][0].get("z")
             v1 = 5.0 if v1 is None else float(v1)

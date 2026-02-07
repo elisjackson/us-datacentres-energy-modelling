@@ -1,6 +1,6 @@
 import pandas as pd
 import dash_bootstrap_components as dbc
-from dash import Input, Output
+from dash import Input, Output, html
 import random
 
 def register_callbacks(app):
@@ -14,14 +14,20 @@ def register_callbacks(app):
     )
     def update_solar_data_table(pv_location_data):
 
+        key_mappings = {
+            "ssrd": "GHI (W/m²)",
+            "fdir": "DNI (W/m²)",
+        }
+
         # template empty dataframe
-        empty_df = pd.DataFrame({"Value": [""] * 3}, index=["ssrd", "fdir", "Test"])
+        empty_df = pd.DataFrame({"Value": [""] * 3}, index=["GHI (W/m²)", "DNI (W/m²)", "Test"])
 
         if not pv_location_data:
             return dbc.Table.from_dataframe(empty_df, index=True, index_label="Property")
 
         df = pd.DataFrame([pv_location_data])
-        df = df[[c for c in ["ssrd", "fdir"] if c in df.columns]]
+        df = df.rename(columns=key_mappings)
+        df = df[[c for c in ["GHI (W/m²)", "DNI (W/m²)"] if c in df.columns]]
 
         if df.empty:
             return dbc.Table.from_dataframe(empty_df, index=True, index_label="Property")
@@ -33,3 +39,8 @@ def register_callbacks(app):
         df.loc["Test", "Value"] = round(random.random(), 2)
 
         return dbc.Table.from_dataframe(df, index=True, index_label="Property")
+
+solar_data_table_footer = html.P(
+    ["GHI: Global Horizontal Irradiance", html.Br(), "DNI: Direct Normal Irradiance"],
+    className="text-muted-small",
+)

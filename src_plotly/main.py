@@ -5,6 +5,7 @@ import pandas as pd
 import src_plotly.map_callbacks as map_callbacks
 import src_plotly.wind_profile as wind_profile
 import src_plotly.solar_data_table as solar_data_table
+from src_plotly.solar_data_table import solar_data_table_footer
 
 external_stylesheets = [dbc.themes.DARKLY]
 app = Dash(__name__, external_stylesheets=external_stylesheets)
@@ -85,6 +86,7 @@ accordion = dbc.Accordion(
                                             className="h4"
                                         ),
                                         html.Div(id="solar-data-table"),
+                                        solar_data_table_footer,
                                     ],
                                 ),
                                 html.Div(
