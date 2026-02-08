@@ -1,20 +1,23 @@
 """
-Optimiser parameters form: 4 rows × (toggle | slider 0–100 | dropdown low/mid/high).
+Optimiser parameters form: 4 rows x (toggle | slider 0-100 | dropdown low/mid/high).
 When a row's toggle is off, its slider and dropdown are disabled and greyed (values retained).
 """
 from dash import dcc, html, Input, Output, State, ALL, no_update
 import dash_bootstrap_components as dbc
 
-from src_plotly.optimise import run_optimisation
+from src_plotly.optimise import run_optimisation, execute_optimisation
 
-N_ROWS = 4
-ROW_IDS = list(range(N_ROWS))
 ROW_LABELS = [
     "Data Centre Capacity",
     "Wind Farm Capacity",
     "Solar PV Capacity",
     "Grid Connection",
+    "Gas CCGT Capacity",
+    "SMR Capacity",
+    "CO2 price"
 ]
+N_ROWS = len(ROW_LABELS)
+ROW_IDS = list(range(N_ROWS))
 
 # Column widths (Bootstrap grid, must sum to 12): Parameter | Toggle | Level | Tier
 W_PARAM, W_TOGGLE, W_LEVEL, W_TIER = 2, 1, 5, 4
@@ -74,11 +77,11 @@ def _make_row(row_id: int):
                     dcc.Dropdown(
                         id={"type": _DROPDOWN, "index": row_id},
                         options=[
-                            {"label": "Low", "value": "low"},
-                            {"label": "Mid", "value": "mid"},
-                            {"label": "High", "value": "high"},
+                            {"label": "Low", "value": "Low"},
+                            {"label": "Mid", "value": "Mid"},
+                            {"label": "High", "value": "High"},
                         ],
-                        value="mid",
+                        value="Mid",
                         clearable=False,
                     ),
                     className="optimiser-tier-dropdown-wrapper w-100",
@@ -197,12 +200,24 @@ def register_callbacks(app):
     def _run_optimisation_and_close(trigger, toggles, sliders, tiers):
         if trigger is None:
             return no_update, no_update, no_update, no_update, no_update
-        result = run_optimisation(
-            toggles=toggles,
-            sliders=sliders,
-            tiers=tiers,
-        )
-        result_text = f"{result['message']} Status: {result['status']}."
+        # Map list index → parameter label so kwargs are traceable
+        toggles_by_param = dict(zip(ROW_LABELS, toggles))
+        sliders_by_param = dict(zip(ROW_LABELS, sliders))
+        tiers_by_param = dict(zip(ROW_LABELS, tiers))
+        TEST = False
+        if TEST:
+            result = run_optimisation(
+                toggles=toggles_by_param,
+                sliders=sliders_by_param,
+                tiers=tiers_by_param,
+            )
+        else:
+            result = execute_optimisation(
+                toggles=toggles_by_param,
+                sliders=sliders_by_param,
+                tiers=tiers_by_param,
+            )
+        result_text = f"{result['message']} Status: {result['status']} Duration: {result['duration_seconds']} seconds."
         return (
             result_text,
             False,
