@@ -104,6 +104,20 @@
 .row-slider-wrapper {
     width: 100%;
     min-width: 120px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+/* Let the slider take remaining space; value span keeps reserved width so range text doesn’t wrap */
+.row-slider-wrapper .row-slider-dcc,
+.row-slider-wrapper .row-rangeslider-dcc {
+    flex: 1;
+    min-width: 0;
+}
+.row-slider-value {
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 5em;
 }
 .row-slider-input.form-range {
     width: 100%;
@@ -123,6 +137,13 @@
     background: #34495e;
     border-radius: 4px;
 }
+/* Invalid low range (e.g. 0–10 when min is 10): left portion of track grey */
+.row-slider-input.slider-invalid-low::-webkit-slider-runnable-track {
+    background: linear-gradient(to right, #5a6a7a 0%, #5a6a7a 10%, #34495e 10%, #34495e 100%);
+}
+.row-slider-input.slider-invalid-low::-moz-range-track {
+    background: linear-gradient(to right, #5a6a7a 0%, #5a6a7a 10%, #34495e 10%, #34495e 100%);
+}
 .row-slider-input.form-range::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 18px;
@@ -130,7 +151,7 @@
     margin-top: -5px;
     background: #3498db;
     border-radius: 50%;
-    border: 2px solid #ecf0f1;
+    border: 2px solid #282828;
     cursor: pointer;
 }
 .row-slider-input.form-range::-moz-range-thumb {
@@ -138,12 +159,68 @@
     height: 18px;
     background: #3498db;
     border-radius: 50%;
-    border: 2px solid #ecf0f1;
+    border: 2px solid #282828;
     cursor: pointer;
 }
 .row-disabled .row-slider-input {
     opacity: 0.5;
     pointer-events: none;
+}
+
+/* dcc.Slider / dcc.RangeSlider in optimiser form: full width + theme colours (rc-slider) */
+.row-slider-wrapper .row-slider-dcc,
+.row-slider-wrapper .row-rangeslider-dcc {
+    width: 100%;
+}
+/* Workaround: dcc applies a wrapper with padding 0 25px 25px (from tooltip logic), so the
+   slider sits at the top of the box and looks misaligned. Cancel the bottom padding. */
+.row-slider-wrapper .row-slider-dcc,
+.row-slider-wrapper .row-rangeslider-dcc {
+    margin-bottom: -20px !important;
+}
+.row-slider-wrapper .rc-slider-rail {
+    background-color: #34495e !important;
+    height: 8px !important;
+    border-radius: 4px !important;
+}
+.row-slider-wrapper .rc-slider-track {
+    background-color: #375a7f !important;
+    height: 8px !important;
+    border-radius: 4px !important;
+    opacity: 0.85 !important;
+}
+.row-slider-wrapper .rc-slider-handle {
+    width: 18px !important;
+    height: 18px !important;
+    margin-top: -5px !important;
+    background-color: #375a7f !important;
+    border: 2px solid #282828 !important;
+    border-radius: 50% !important;
+    cursor: pointer !important;
+}
+.row-slider-wrapper .rc-slider-handle:hover,
+.row-slider-wrapper .rc-slider-handle:focus,
+.row-slider-wrapper .rc-slider-handle-dragging {
+    border-color: #282828 !important;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.4) !important;
+}
+.row-slider-wrapper .rc-slider-dot {
+    background-color: #34495e !important;
+    border-color: #34495e !important;
+}
+.row-disabled .row-slider-dcc,
+.row-disabled .row-rangeslider-dcc {
+    opacity: 0.5;
+    pointer-events: none;
+}
+.row-disabled .row-slider-wrapper .rc-slider-handle {
+    opacity: 0.7;
+}
+
+/* Optimiser form: hide columns but keep their space so sliders align across sections (e.g. Data Centre) */
+.optimiser-col-hidden {
+    visibility: hidden !important;
+    pointer-events: none !important;
 }
 
 /* Optimiser form: Tier column dropdowns fill column width */
