@@ -33,14 +33,14 @@ W_PARAM, W_TOGGLE, W_CAPACITY, W_TIER = 2, 1, 5, 4
 
 # ID type prefixes so callbacks don't clash with other components
 _TOGGLE = "optimiser-toggle"
-_SLIDER = "optimiser-slider"           # dcc.Slider: single value (rows 0, 6)
-_RANGESLIDER = "optimiser-rangeslider"  # dcc.RangeSlider: [low, high] (rows 1-5)
+_SLIDER = "optimiser-slider"            # dcc.Slider: single value (all rows currently)
+_RANGESLIDER = "optimiser-rangeslider"  # Reserved: dcc.RangeSlider [low, high] for GENERATION_ROW_IDS if re-enabled
 _SLIDER_VALUE = "optimiser-slider-value"
 _DROPDOWN = "optimiser-dropdown"
 _ROW_WRAPPER = "optimiser-row-wrapper"
 
 SINGLE_SLIDER_ROW_IDS = [0, 6]   # Data Centre, CO2 (CO2 slider hidden)
-GENERATION_ROW_IDS = [1, 2, 3, 4, 5]
+GENERATION_ROW_IDS = [1, 2, 3, 4, 5]  # Reserved for future RangeSlider (low–high) per row
 
 # Optional valid range per row (single sliders only; values outside range are clamped on change).
 # e.g. row 0 (Data Centre Capacity): valid range 10-100, so 0-9 snap to 10.
@@ -57,43 +57,20 @@ def _hidden_class(visible_columns: list | None, col_id: str) -> str:
 
 
 def _slider_col_content(row_id: int):
-    """dcc.Slider (single value) for rows 0, 6; dcc.RangeSlider (low–high) for Generation rows 1–5. Value span for display."""
-    if row_id in SINGLE_SLIDER_ROW_IDS:
-        default = 50
-        if row_id == 0 and SLIDER_VALID_RANGE.get(0, {}).get("min") is not None:
-            default = max(50, SLIDER_VALID_RANGE[0]["min"])
-        return html.Div(
-            [
-                dcc.Slider(
-                    id={"type": _SLIDER, "index": row_id},
-                    min=0,
-                    max=100,
-                    step=10,
-                    value=default,
-                    marks=None,
-                    # tooltip={"placement": "bottom", "always_visible": False},
-                    className="row-slider-dcc",
-                ),
-                html.Span(
-                    id={"type": _SLIDER_VALUE, "index": row_id},
-                    className="row-slider-value ms-2 text-muted",
-                    style={"fontSize": "0.9rem"},
-                ),
-            ],
-            className="d-flex align-items-center row-slider-wrapper",
-        )
+    """Single dcc.Slider (max value) for all rows. RangeSlider infra kept for future use (see _RANGESLIDER, GENERATION_ROW_IDS)."""
+    default = 50
+    if row_id == 0 and SLIDER_VALID_RANGE.get(0, {}).get("min") is not None:
+        default = max(50, SLIDER_VALID_RANGE[0]["min"])
     return html.Div(
         [
-            dcc.RangeSlider(
-                id={"type": _RANGESLIDER, "index": row_id},
+            dcc.Slider(
+                id={"type": _SLIDER, "index": row_id},
                 min=0,
                 max=100,
                 step=10,
-                value=[0, 100],
+                value=default,
                 marks=None,
-                allowCross=False,
-                # tooltip={"placement": "bottom", "always_visible": False},
-                className="row-rangeslider-dcc",
+                className="row-slider-dcc",
             ),
             html.Span(
                 id={"type": _SLIDER_VALUE, "index": row_id},
@@ -247,12 +224,10 @@ def optimiser_form_layout():
 
 def register_callbacks(app):
     """Register callbacks for the optimiser form (row enable/disable, slider value display)."""
-    # Disable slider(s) and dropdown when toggle is off; add row-disabled class
+    # Disable slider and dropdown when toggle is off; add row-disabled class
     @app.callback(
         [
-            Output({"type": _SLIDER, "index": 0}, "disabled"),
-            Output({"type": _SLIDER, "index": 6}, "disabled"),
-            Output({"type": _RANGESLIDER, "index": ALL}, "disabled"),
+            Output({"type": _SLIDER, "index": ALL}, "disabled"),
             Output({"type": _DROPDOWN, "index": ALL}, "disabled"),
             Output({"type": _ROW_WRAPPER, "index": ALL}, "className"),
         ],
@@ -264,60 +239,40 @@ def register_callbacks(app):
             "mb-3 align-items-center row-controls" + (" row-disabled" if d else "")
             for d in disabled_list
         ]
-        range_disabled = [disabled_list[i] for i in GENERATION_ROW_IDS]
-        return (
-            disabled_list[0],
-            disabled_list[6],
-            range_disabled,
-            disabled_list,
-            row_class,
-        )
+        return disabled_list, disabled_list, row_class
 
-    # Clamp single sliders to valid range (e.g. Data Centre Capacity min 10)
+    # Clamp slider values to valid range (e.g. Data Centre Capacity min 10)
     @app.callback(
-        [
-            Output({"type": _SLIDER, "index": 0}, "value"),
-            Output({"type": _SLIDER, "index": 6}, "value"),
-        ],
-        [
-            Input({"type": _SLIDER, "index": 0}, "value"),
-            Input({"type": _SLIDER, "index": 6}, "value"),
-        ],
+        Output({"type": _SLIDER, "index": ALL}, "value"),
+        Input({"type": _SLIDER, "index": ALL}, "value"),
     )
-    def _clamp_single_sliders(v0, v6):
-        def clamp_one(i, v):
+    def _clamp_slider_values(values):
+        if values is None:
+            return no_update
+        result = []
+        for i, v in enumerate(values):
             if v is None:
-                return 50
+                result.append(50)
+                continue
             r = SLIDER_VALID_RANGE.get(i)
             if not r:
-                return v
+                result.append(v)
+                continue
             v = int(v)
             if "min" in r and v < r["min"]:
                 v = r["min"]
             if "max" in r and v > r["max"]:
                 v = r["max"]
-            return v
-        return clamp_one(0, v0), clamp_one(6, v6)
+            result.append(v)
+        return result
 
-    # Show current slider value(s) next to each row (single value or "low – high")
+    # Show current slider value next to each row
     @app.callback(
         Output({"type": _SLIDER_VALUE, "index": ALL}, "children"),
-        [
-            Input({"type": _SLIDER, "index": 0}, "value"),
-            Input({"type": _SLIDER, "index": 6}, "value"),
-            Input({"type": _RANGESLIDER, "index": ALL}, "value"),
-        ],
+        Input({"type": _SLIDER, "index": ALL}, "value"),
     )
-    def _update_slider_display(s0, s6, range_values):
-        parts = [
-            str(s0) if s0 is not None else "—",
-            *[
-                f"{r[0]} – {r[1]}" if r and len(r) >= 2 else "—"
-                for r in (range_values or [])
-            ],
-            str(s6) if s6 is not None else "—",
-        ]
-        return parts
+    def _update_slider_display(values):
+        return [str(v) if v is not None else "—" for v in values]
 
     # Optimise button: open loading modal and trigger run
     @app.callback(
@@ -345,25 +300,16 @@ def register_callbacks(app):
         Input("optimiser-trigger-run", "data"),
         [
             State({"type": _TOGGLE, "index": ALL}, "value"),
-            State({"type": _SLIDER, "index": 0}, "value"),
-            State({"type": _SLIDER, "index": 6}, "value"),
-            State({"type": _RANGESLIDER, "index": ALL}, "value"),
+            State({"type": _SLIDER, "index": ALL}, "value"),
             State({"type": _DROPDOWN, "index": ALL}, "value"),
         ],
         prevent_initial_call=True,
     )
-    def _run_optimisation_and_close(trigger, toggles, slider_0, slider_6, range_values, tiers):
+    def _run_optimisation_and_close(trigger, toggles, sliders, tiers):
         if trigger is None:
             return no_update, no_update, no_update, no_update, no_update
         toggles_by_param = dict(zip(ROW_LABELS, toggles))
-        sliders_by_param = {
-            ROW_LABELS[0]: slider_0,
-            **{
-                ROW_LABELS[i]: (range_values[j] if range_values and j < len(range_values) else [0, 100])
-                for j, i in enumerate(GENERATION_ROW_IDS)
-            },
-            ROW_LABELS[6]: slider_6,
-        }
+        sliders_by_param = dict(zip(ROW_LABELS, sliders))
         tiers_by_param = dict(zip(ROW_LABELS, tiers))
         TEST = True
         if TEST:
