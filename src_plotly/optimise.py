@@ -116,7 +116,14 @@ def execute_optimisation(
     generation_ts.index = range(0, len(generation_ts))
     # generation_ts.to_dict()
     for gen in generation_ts.columns:
-        generation_ts_dict[gen] = generation_ts["wind"].to_list()
+        generation_ts_dict[gen] = generation_ts[gen].to_list()
+
+    # timeseries of storage
+    storage_ts_dict = {}
+    storage_ts = network.storage_units_t.p
+    storage_ts.index = range(0, len(storage_ts))
+    for storage in storage_ts.columns:
+        storage_ts_dict[storage] = storage_ts[storage].to_list()
 
     # optimal generation capacities
     generator_stats = network.generators[["p_nom_opt", "capital_cost", "lifetime", "marginal_cost"]].to_dict()
@@ -130,6 +137,7 @@ def execute_optimisation(
         "total_energy": total_energy,
         "total_emissions": total_emissions,
         "generation_ts": generation_ts_dict,
+        "storage_ts": storage_ts_dict,
         "generator_stats": generator_stats,
         "storage_stats": storage_stats,
         "duration_seconds": round(duration, 2),
