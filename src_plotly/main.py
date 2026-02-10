@@ -133,10 +133,52 @@ accordion = dbc.Accordion(
     active_item="accordion-location",
 )
 
+# TODO - replace links
+GITHUB_URL = "https://github.com"
+LINKEDIN_URL = "https://linkedin.com"
+
+LINKEDIN_ICON_SVG = (
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ecf0f1'%3E"
+    "%3Cpath d='M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z'/%3E"
+    "%3C/svg%3E"
+)
+
+app_header = html.Div(
+    [
+        html.H1("Datacentre energy optimiser", className="app-header-title"),
+    ],
+    id="app-header",
+    className="app-header",
+)
+
+sidebar_footer_links = html.Div(
+    [
+        html.A(
+            href=GITHUB_URL,
+            target="_blank",
+            rel="noopener noreferrer",
+            children=html.Img(
+                src="https://cdn.simpleicons.org/github/ecf0f1",
+                alt="GitHub",
+                className="sidebar-footer-icon",
+            ),
+        ),
+        html.A(
+            href=LINKEDIN_URL,
+            target="_blank",
+            rel="noopener noreferrer",
+            children=html.Img(
+                src=LINKEDIN_ICON_SVG,
+                alt="LinkedIn",
+                className="sidebar-footer-icon",
+            ),
+        ),
+    ],
+    className="sidebar-footer-links",
+)
+
 sidebar = html.Div(
     [
-        html.H3("Datacentre energy optimiser", className="display-9"),
-        html.Hr(),
         dbc.Nav(
             [
                 dbc.NavLink("Home", href="#"),
@@ -144,6 +186,13 @@ sidebar = html.Div(
             ],
             vertical=True,
             pills=True,
+        ),
+        html.Div(
+            [
+                html.Span("Elis Jackson", className="sidebar-credit"),
+                sidebar_footer_links,
+            ],
+            className="sidebar-footer",
         ),
     ],
     className="sidebar",
@@ -157,14 +206,21 @@ main_content = html.Div(
 )
 
 app.layout = dbc.Container(
-    dbc.Row(
+    html.Div(
         [
-            dbc.Col(sidebar, width=2, className="sidebar-col"),
-            dbc.Col(main_content, width=10),
+            app_header,
+            dbc.Row(
+                [
+                    dbc.Col(sidebar, width=2, className="sidebar-col"),
+                    dbc.Col(main_content, width=10),
+                ],
+                className="layout-row g-0",
+            ),
         ],
-        className="layout-row g-0",
+        className="app-layout",
     ),
     fluid=True,
+    className="app-container",
 )
 
 if __name__ == "__main__":
