@@ -193,7 +193,6 @@ def optimiser_form_layout():
         [
             *[_make_section(s, is_first=(i == 0)) for i, s in enumerate(SECTIONS)],
             dbc.Button("Optimise", id="optimiser-optimise-button", color="primary", className="mt-3"),
-            html.Div(id="optimiser-result", className="mt-2 text-muted small"),
             dcc.Store(id="optimiser-trigger-run"),
             dbc.Modal(
                 [
@@ -291,11 +290,10 @@ def register_callbacks(app):
 
     @app.callback(
         [
-            Output("optimiser-result", "children"),
             Output("optimiser-loading-modal", "is_open", allow_duplicate=True),
             Output("optimiser-trigger-run", "data", allow_duplicate=True),
             Output("main-accordion", "active_item"),
-            Output("optimiser-results-content", "children"),
+            Output("optimiser-results-data", "data"),
         ],
         Input("optimiser-trigger-run", "data"),
         [
@@ -311,7 +309,7 @@ def register_callbacks(app):
         toggles_by_param = dict(zip(ROW_LABELS, toggles))
         sliders_by_param = dict(zip(ROW_LABELS, sliders))
         tiers_by_param = dict(zip(ROW_LABELS, tiers))
-        TEST = True
+        TEST = False
         if TEST:
             result = run_optimisation(
                 toggles=toggles_by_param,
@@ -324,11 +322,10 @@ def register_callbacks(app):
                 sliders=sliders_by_param,
                 tiers=tiers_by_param,
             )
-        result_text = f"{result['message']} Status: {result['status']} Duration: {result['duration_seconds']} seconds."
+        # Store full dict for parsing in results section (e.g. generator_stats, generation_ts)
         return (
-            result_text,
             False,
             None,
             _RESULTS_ACCORDION_ITEM_ID,
-            result_text,
+            result,
         )

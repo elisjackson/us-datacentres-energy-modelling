@@ -249,3 +249,19 @@
     width: 100% !important;
     max-width: 100%;
 }
+
+/* Global dbc.Card defaults – applies to every card in the app (overrides Darkly) */
+.card {
+    border: 1px solid #34495e;
+    border-radius: 8px;
+}
+.card-header {
+    background-color: rgba(52, 73, 94, 0.9);
+    border-bottom: 1px solid #34495e;
+    color: #ecf0f1;
+    padding: 0.6rem 1rem;
+}
+.card-body {
+    color: #ecf0f1;
+    padding: 1rem;
+}

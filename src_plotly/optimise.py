@@ -21,6 +21,8 @@ from meteo_data.process_era5 import read_era5_netcdf
 
 DATA_DIR = _repo_root / "data"
 
+logger = logging.getLogger(__name__)
+
 
 def execute_optimisation(
     **kwargs: dict,
@@ -39,42 +41,44 @@ def execute_optimisation(
     kwargs: {
         'toggles': {
             'Data Centre Capacity': True,
-            'Wind Farm Capacity': True,
-            'Solar PV Capacity': True,
+            'Wind': True,
+            'Solar PV': True,
             'Grid Connection': True,
-            'Gas CCGT Capacity': True,
-            'SMR Capacity': True,
+            'Gas CCGT': True,
+            'SMR': True,
             'CO2 price': True
             },
         'sliders': {
             'Data Centre Capacity': 50,
-            'Wind Farm Capacity': 50,
-            'Solar PV Capacity': 50,
+            'Wind': 50,
+            'Solar PV': 50,
             'Grid Connection': 50,
-            'Gas CCGT Capacity': 50,
-            'SMR Capacity': 50,
-            'CO2 price': 50
+            'Gas CCGT': 50,
+            'SMR': 50,
+            'CO2 price': 50,
         },
         'tiers': {
             'Data Centre Capacity': 'Mid',
-            'Wind Farm Capacity': 'Mid',
-            'Solar PV Capacity': 'Mid',
+            'Wind': 'Mid',
+            'Solar PV': 'Mid',
             'Grid Connection': 'Mid',
-            'Gas CCGT Capacity': 'Mid',
-            'SMR Capacity': 'Mid',
+            'Gas CCGT': 'Mid',
+            'SMR': 'Mid',
             'CO2 price': 'Mid'
-        }
     """
+
+    logger.info(f"kwargs: {kwargs}")
+    print(f"kwargs: {kwargs}")
 
     t0 = time.time()
 
     costs = get_technology_costs(
-        wind_sel=kwargs["tiers"]["Wind Farm Capacity"],
-        pv_sel=kwargs["tiers"]["Solar PV Capacity"],
-        ccgt_capex_sel=kwargs["tiers"]["Gas CCGT Capacity"],
+        wind_sel=kwargs["tiers"]["Wind"],
+        pv_sel=kwargs["tiers"]["Solar PV"],
+        ccgt_capex_sel=kwargs["tiers"]["Gas CCGT"],
         # ccgt_marginal_cost_sel=kwargs["tiers"]["CCGT Marginal Cost"],
         )
-
+    
     network = pypsa_model_2(
         load=kwargs["sliders"]["Data Centre Capacity"],
         wind_cost=costs["wind"],
@@ -86,15 +90,48 @@ def execute_optimisation(
     t1 = time.time()
     duration = t1 - t0
 
+    # things we want to return:
+    # System costs (CAPEX, OPEX, Energy cost, CO2 Total)
+    # Total CO2 per year
+    # Generation and Storage optimal capacities
+    # Generation and Storage CAPEX, OPEX, Energy costs, CO2
+    # Generation and Storage optimal dispatch (timeseries)
+
+    total_cost = network.objective
+
+    # total energy demand
+    network.loads_t.p.sum().to_dict()
+
+    # total energy delivered per generator
+    total_energy = network.generators_t.p.sum().to_dict()
+
+    # Calculate emissions using carrier information
+    total_emissions = network.generators_t.p.multiply(
+        network.generators.carrier.map(network.carriers.co2_emissions)
+    ).sum().sum()
+    
+    # timeseries of generation
+    generation_ts_dict = {}
+    generation_ts = network.generators_t.p
+    generation_ts.index = range(0, len(generation_ts))
+    # generation_ts.to_dict()
+    for gen in generation_ts.columns:
+        generation_ts_dict[gen] = generation_ts["wind"].to_list()
+
+    # optimal generation capacities
+    generator_stats = network.generators[["p_nom_opt", "capital_cost", "lifetime", "marginal_cost"]].to_dict()
+
+    # optimal storage capacities
+    storage_stats = network.storage_units[["p_nom_opt", "capital_cost", "lifetime", "marginal_cost"]].to_dict()
+
     return {
         "status": "ok",
-        "message": f"""
-        Wind capacity: {network.generators.p_nom_opt['wind']:.2f} MW
-        Solar capacity: {network.generators.p_nom_opt['solar']:.2f} MW
-        CCGT capacity: {network.generators.p_nom_opt['ccgt']:.2f} MW
-        Total system cost: €{network.objective:,.2f}/year
-        Optimization completed in {round(duration, 2)} seconds
-        """,
+        "total_cost": total_cost,
+        "total_energy": total_energy,
+        "total_emissions": total_emissions,
+        "generation_ts": generation_ts_dict,
+        "generator_stats": generator_stats,
+        "storage_stats": storage_stats,
         "duration_seconds": round(duration, 2),
     }
 
@@ -155,10 +192,18 @@ def pypsa_model_2(
     ccgt_cost: float,
     ccgt_marginal_cost: float,
 ) -> pypsa.Network:
+
+    logger.info("Creating PyPSA network")
     # Create network with snapshots
     network = pypsa.Network()
     snapshots = pd.date_range("2024-01-01", periods=8760, freq="h")  # Full year
     network.set_snapshots(snapshots)
+
+    # Add carrier for gas
+    network.add("Carrier", "gas", co2_emissions=0.35)  # tonnes/MWh for CCGT
+
+    # CO2 price
+    co2_price = 80  # €/tonne
 
     # Add bus
     network.add("Bus", "bus_0")
@@ -213,22 +258,36 @@ def pypsa_model_2(
                 marginal_cost=0,        # €0/MWh operational cost
                 p_max_pu=solar_profile)
 
+    # Gas generator - add CO2 price to marginal cost
+    gas_fuel_cost = 50
+    gas_co2_cost = network.carriers.co2_emissions['gas'] * co2_price
+
     # Add CCGT - capacity is OPTIMIZABLE
     network.add("Generator",
                 "ccgt",
                 bus="bus_0",
+                carrier="gas",
                 p_nom_extendable=True,  # KEY: make capacity a decision variable
                 p_nom_min=0,
                 p_nom_max=300,
                 capital_cost=ccgt_cost,    # cost per MW per year (annualized CAPEX)
-                marginal_cost=ccgt_marginal_cost)       # operational cost per MWh
+                marginal_cost=gas_fuel_cost + gas_co2_cost)       # operational cost per MWh
+
+    # Add Storage
+    network.add("StorageUnit",
+                "storage",
+                bus="bus_0",
+                p_nom_extendable=True,  # KEY: make capacity a decision variable
+                max_hours=4,
+                capital_cost=1000,
+                marginal_cost=0)
 
     # Solve for optimal capacities AND dispatch
-    print("Solving optimization...")
+    logger.info("Solving optimization...")
     t0 = time.time()
     network.optimize()
     t1 = time.time()
-    print(f"Optimization completed in {t1 - t0:.2f} seconds")
+    logger.info(f"Optimization completed in {t1 - t0:.2f} seconds")
 
     # Results
     print("=== OPTIMAL CAPACITIES ===")
@@ -269,6 +328,14 @@ def pypsa_model_2(
     print(f"Solar CF: {solar_energy / (network.generators.p_nom_opt['solar'] * 8760):.1%}")
     print(f"CCGT CF: {ccgt_energy / (network.generators.p_nom_opt['ccgt'] * 8760):.1%}")
     print()
+
+    # timeseries of generation
+    generation_ts = network.generators_t.p
+
+    # optimal generation capacities
+    network.generators.p_nom_opt
+
+
 
     return network
 
@@ -417,4 +484,39 @@ def main():
 
 if __name__ == "__main__":
     # main()
-    pypsa_model()
+    # pypsa_model()
+    kwargs = {
+        "toggles": {
+            "Data Centre Capacity": True,
+            "Wind Farm Capacity": True,
+            "Solar PV Capacity": True,
+            "Grid Connection": True,
+            "Gas CCGT Capacity": True,
+            "SMR Capacity": True,
+            "CO2 price": True,  
+        },
+        "sliders": {
+            "Data Centre Capacity": 50,
+            "Wind Farm Capacity": 50,
+            "Solar PV Capacity": 50,
+            "Grid Connection": 50,
+            "Gas CCGT Capacity": 50,
+            "SMR Capacity": 50,
+            "CO2 price": 50,
+        },
+        "tiers": {
+            "Data Centre Capacity": "Mid",
+            "Wind Farm Capacity": "Mid",
+            "Solar PV Capacity": "Mid",
+            "Grid Connection": "Mid",
+            "Gas CCGT Capacity": "Mid",
+            "SMR Capacity": "Mid",
+            "CO2 price": "Mid"
+        }
+    }
+    results = execute_optimisation(
+        toggles=kwargs["toggles"],
+        sliders=kwargs["sliders"],
+        tiers=kwargs["tiers"],
+    )
+    print(results)
