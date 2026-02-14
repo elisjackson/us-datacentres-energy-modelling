@@ -460,6 +460,28 @@ def concept_form_layout():
                     )
                 ],
             ),
+            # Stores for optimisation workflow
+            dcc.Store(id="optimiser-parameters-store"),
+            dcc.Store(id="optimiser-trigger-run"),
+            dcc.Store(id="optimiser-results-data"),
+            # Loading modal
+            dbc.Modal(
+                [
+                    dbc.ModalHeader(dbc.ModalTitle("Optimising")),
+                    dbc.ModalBody(
+                        [
+                            dbc.Spinner(color="primary", size="sm", spinner_class_name="me-2"),
+                            "Running optimisation…",
+                        ],
+                        className="d-flex align-items-center",
+                    ),
+                ],
+                id="optimiser-loading-modal",
+                is_open=False,
+                centered=True,
+                backdrop="static",
+                keyboard=False,
+            ),
         ],
         style={
             "backgroundColor": "rgba(255,255,255,0.06)",
@@ -696,6 +718,157 @@ def register_callbacks(app):
         is_disabled = not has_active
         
         return is_disabled
+    
+    
+    # Optimise button: open loading modal and trigger run
+    @app.callback(
+        Output("optimiser-loading-modal", "is_open"),
+        Output("optimiser-trigger-run", "data"),
+        Input("optimise-button", "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def open_loading_modal(n_clicks):
+        """Open loading modal when Optimise button is clicked."""
+        return True, n_clicks
+    
+    
+    @app.callback(
+        Output("optimiser-parameters-store", "data"),
+        Output("optimiser-loading-modal", "is_open", allow_duplicate=True),
+        Output("main-accordion", "active_item"),
+        Output("optimiser-results-data", "data"),
+        Input("optimiser-trigger-run", "data"),
+        State("data-centre-capacity-slider", "value"),
+        State({"type": "generation-pill", "index": ALL}, "active"),
+        State({"type": "generation-pill", "index": ALL}, "id"),
+        State({"type": "subtype-pill", "card": ALL, "subtype": ALL}, "active"),
+        State({"type": "subtype-pill", "card": ALL, "subtype": ALL}, "id"),
+        State({"type": "cost-level-btn", "card": ALL, "param": ALL, "level": ALL}, "active"),
+        State({"type": "cost-level-btn", "card": ALL, "param": ALL, "level": ALL}, "id"),
+        State({"type": "cost-value-input", "card": ALL, "param": ALL, "level": ALL}, "value"),
+        State({"type": "cost-value-input", "card": ALL, "param": ALL, "level": ALL}, "id"),
+        State({"type": "storage-toggle", "index": "storage-toggle"}, "value"),
+        State({"type": "co2-toggle", "index": "co2-toggle"}, "value"),
+        prevent_initial_call=True,
+    )
+    def collect_optimiser_parameters(
+        trigger,
+        dc_capacity,
+        gen_pill_active,
+        gen_pill_ids,
+        subtype_pill_active,
+        subtype_pill_ids,
+        cost_btn_active,
+        cost_btn_ids,
+        cost_input_values,
+        cost_input_ids,
+        storage_enabled,
+        co2_enabled,
+    ):
+        """Collect all form parameters and structure them for the optimiser."""
+        
+        if trigger is None:
+            return no_update, no_update, no_update, no_update
+        
+        # Build the parameters dictionary
+        parameters = {
+            'data_centre_capacity': dc_capacity,
+            'generation': {},
+            'battery_storage': {'enabled': storage_enabled},
+            'co2': {'enabled': co2_enabled},
+        }
+        
+        # Identify which generation types are enabled
+        active_gen_cards = []
+        for i, (active, pill_id) in enumerate(zip(gen_pill_active, gen_pill_ids)):
+            if active:
+                card_id = pill_id["index"]
+                # Find the card instance
+                card = generation_cards_dict.get(card_id)
+                if card:
+                    active_gen_cards.append(card)
+        
+        # For each active generation card, extract its parameters
+        for card in active_gen_cards:
+            gen_type = card.title
+            card_id = card.card_id
+            
+            # Find selected subtype (if multiple subtypes exist)
+            selected_subtype = None
+            if len(card.subtypes) > 1:
+                # Find which subtype pill is active for this card
+                for active, pill_id in zip(subtype_pill_active, subtype_pill_ids):
+                    if active and pill_id["card"] == card_id:
+                        selected_subtype = pill_id["subtype"]
+                        break
+            else:
+                # Single subtype, use default
+                selected_subtype = card.subtypes[0]
+            
+            if not selected_subtype:
+                continue
+            
+            # Extract costs for this card
+            costs = {}
+            # Find which cost level button is active for each cost parameter
+            for i, (active, btn_id) in enumerate(zip(cost_btn_active, cost_btn_ids)):
+                if btn_id["card"] == card_id and active:
+                    param = btn_id["param"]
+                    level = btn_id["level"]
+                    
+                    # Get the corresponding input value
+                    for j, inp_id in enumerate(cost_input_ids):
+                        if (inp_id["card"] == card_id and 
+                            inp_id["param"] == param and 
+                            inp_id["level"] == level):
+                            value = cost_input_values[j]
+                            
+                            # Get unit from DataFrame
+                            unit_df = card.cost_choices_df[
+                                (card.cost_choices_df["subtype"] == selected_subtype) &
+                                (card.cost_choices_df["cost_parameter"] == param)
+                            ]
+                            unit = unit_df["unit"].unique()[0] if not unit_df.empty else ""
+                            
+                            costs[param] = {
+                                'value': value,
+                                'unit': unit
+                            }
+                            break
+            
+            # Extract additional assumptions for this subtype
+            assumptions = {}
+            if card.has_cost_assumptions:
+                assumptions_df = card.cost_assumptions_df[
+                    card.cost_assumptions_df["subtype"] == selected_subtype
+                ]
+                for _, row in assumptions_df.iterrows():
+                    assumptions[row["cost_parameter"]] = {
+                        'value': row["value"],
+                        'unit': row["unit"],
+                    }
+            
+            # Build entry for this generation type
+            parameters['generation'][gen_type] = {
+                'enabled': True,
+                'subtype': selected_subtype,
+                'costs': costs,
+                'assumptions': assumptions
+            }
+        
+        print("Collected parameters:")
+        print(json.dumps(parameters, indent=2))
+        
+        # TODO: Call execute_optimisation with parameters
+        # For now, just store parameters and show them as "results"
+        result = {
+            'status': 'success',
+            'parameters': parameters,
+            'message': 'Form parameters collected successfully (optimiser not yet connected)'
+        }
+        
+        # Return: parameters store, close modal, open Results accordion, results data
+        return parameters, False, "accordion-results", result
 
 
 # For standalone testing
