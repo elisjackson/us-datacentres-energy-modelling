@@ -33,9 +33,6 @@ class GenerationInput():
 
 
         self.config = GENERATION_CONFIG[title]
-
-        print(self.config)
-
         self.title = title
         self.card_id = f"generation-input-{title.lower().replace(' ', '-')}-card"
 
@@ -50,26 +47,45 @@ class GenerationInput():
         self.default_subtype = self.subtypes[0] if self.subtypes else None
         self.cost_columns = {}
         self.additional_assumptions_column = {}
+        
+        # Check if cost_assumptions exist
+        self.has_cost_assumptions = not self.cost_assumptions_df.empty
+        
         for subtype in self.subtypes:
             self.cost_choice_params[subtype] = self.cost_choices_df[
                 self.cost_choices_df["subtype"] == subtype
             ]["cost_parameter"].unique()
-            self.n_cost_columns[subtype] = len(self.cost_choice_params[subtype]) + 1
+            
+            # Calculate number of columns (cost choices + assumptions column if exists)
+            num_cost_params = len(self.cost_choice_params[subtype])
+            self.n_cost_columns[subtype] = num_cost_params + (1 if self.has_cost_assumptions else 0)
 
             # Build initial cost columns with default subtype (first choice)
             self.cost_columns[subtype] = self.build_all_cost_columns(subtype)
-            # build additional assumptions column
-            self.additional_assumptions_column[subtype] = self.build_additional_assumptions_column(subtype)
-            self.cost_columns[subtype].append(self.additional_assumptions_column[subtype])
+            
+            # build additional assumptions column only if cost_assumptions exist
+            if self.has_cost_assumptions:
+                self.additional_assumptions_column[subtype] = self.build_additional_assumptions_column(subtype)
+                self.cost_columns[subtype].append(self.additional_assumptions_column[subtype])
 
         if len(self.subtypes) > 1:
-            self.radio_items = dcc.RadioItems(
-                options=[{"label": c, "value": c} for c in self.subtypes],
-                value=self.subtypes[0],
-                id={"type": "generation-radio", "index": self.card_id},
+            # Create pill buttons for subtypes
+            self.subtype_buttons = html.Div(
+                [
+                    dbc.Button(
+                        subtype,
+                        id={"type": "subtype-pill", "card": self.card_id, "subtype": subtype},
+                        color="primary",
+                        outline=(i != 0),  # First button is active (not outlined)
+                        active=(i == 0),  # First button is active
+                        className="rounded-pill me-2 px-3",
+                    )
+                    for i, subtype in enumerate(self.subtypes)
+                ],
+                className="d-flex align-items-center",
             )
         else:
-            self.radio_items = None
+            self.subtype_buttons = None
 
         self.card_body = self.create_card_body()
         self.collapsible_card = self.build_collapsible_card(is_open=initial_open)
@@ -100,6 +116,9 @@ class GenerationInput():
         # Flatten to one row per value
         rows = []
         for subtype in self.config:
+            # Check if this cost_type exists for this subtype
+            if cost_type not in self.config[subtype]:
+                continue
             costs = self.config[subtype][cost_type]
             for cost in costs:
                 cost_name = cost['name']
@@ -268,13 +287,14 @@ class GenerationInput():
     def create_card_body(self):
         children = []
         
-        # Radio items row
-        if self.radio_items is not None:
+        # Subtype pill buttons row
+        if self.subtype_buttons is not None:
             children.append(
                 dbc.Row([
-                    dbc.Col(self.radio_items, width=12)
-                ], className="mb-3")
-            )
+                    dbc.Col(html.Label("Select base cost assumptions:"), width="auto"),
+                    dbc.Col(self.subtype_buttons, width="auto")
+                ], className="align-items-center mb-3")
+                )
         
         # Add cost columns in a container that can be updated dynamically
         children.append(
@@ -282,7 +302,7 @@ class GenerationInput():
                 dbc.Row([
                     dbc.Col(c) for c in self.cost_columns[self.default_subtype]
                 ], className="mb-3"),
-                id={"type": "cost-columns-container", "index": self.card_id}
+                id={"type": "cost-columns-container", "card": self.card_id}
             )
         )
         
@@ -297,57 +317,16 @@ with open(CONFIG_DIR / "generation_form copy.json", "r") as f:
 wind_card = GenerationInput("Wind")
 solar_card = GenerationInput("Solar", initial_open=True)
 gas_card = GenerationInput("Gas")
-generation_cards = [solar_card, wind_card, gas_card]
+smr_card = GenerationInput("SMR")
+grid_electricity_card = GenerationInput("Grid Electricity")
+battery_storage_card = GenerationInput("Battery Storage")
+co2_card = GenerationInput("CO2")
+generation_cards = [solar_card, wind_card, gas_card, smr_card, grid_electricity_card]
 generation_card_ids = [card.card_id for card in generation_cards]
-# Store cards by ID for callback access
+# Store cards by ID for callback access (include battery storage and CO2 for callbacks)
 generation_cards_dict = {card.card_id: card for card in generation_cards}
-
-select_generation_col = dbc.Col(
-    dbc.Col(
-        [
-            dbc.Label("Select generation / energy sources", className="mb-2"),
-            html.Div(
-                [
-                    dbc.Button(
-                        card.title,
-                        id={"type": "generation-pill", "index": card.card_id},
-                        color="primary",
-                        outline=False,
-                        active=True,
-                        className="rounded-pill me-2 px-3",
-                    )
-                    for card in generation_cards
-                ],
-                className="d-flex align-items-center mb-2",
-            ),
-        ],
-        width=3,
-    ),
-)
-select_storage_col = dbc.Col(
-    dbc.Col(
-        [
-            dbc.Label("Battery storage", className="mb-2"),
-            dbc.Switch(
-                id={"type": "storage-toggle", "index": "storage-toggle"},
-                value=False
-            ),
-        ],
-        width=3,
-    ),
-)
-select_co2_col = dbc.Col(
-    dbc.Col(
-        [
-            dbc.Label("Include Carbon price", className="mb-2"),
-            dbc.Switch(
-                id={"type": "co2-toggle", "index": "co2-toggle"},
-                value=False
-            ),
-        ],
-        width=3,
-    ),
-)
+generation_cards_dict[battery_storage_card.card_id] = battery_storage_card
+generation_cards_dict[co2_card.card_id] = co2_card
 
 app.layout = dbc.Container(
     html.Div(
@@ -357,21 +336,113 @@ app.layout = dbc.Container(
                     dbc.Col(html.H1("Concept Form"), width=12),
                 ],
             ),
+            # Selection controls row
             dbc.Row(
                 [
-                    select_generation_col,
-                    select_storage_col,
-                    select_co2_col,
+                    # Generation selection column
+                    dbc.Col(
+                        [
+                            dbc.Label("Select generation / energy sources", className="mb-2 text-center"),
+                            html.Div(
+                                [
+                                    dbc.Button(
+                                        card.title,
+                                        id={"type": "generation-pill", "index": card.card_id},
+                                        color="primary",
+                                        outline=False,
+                                        active=True,
+                                        className="rounded-pill me-2 px-3",
+                                    )
+                                    for card in generation_cards
+                                ],
+                                className="d-flex align-items-center justify-content-center",
+                            ),
+                        ],
+                        width="auto",
+                    ),
+                    # Battery storage column
+                    dbc.Col(
+                        [
+                            dbc.Label("Battery storage", className="mb-2 text-center"),
+                            html.Div(
+                                dbc.Switch(
+                                    id={"type": "storage-toggle", "index": "storage-toggle"},
+                                    value=False
+                                ),
+                                className="d-flex align-items-center justify-content-center",
+                                style={"minHeight": "38px"}  # Match button height
+                            ),
+                        ],
+                        width="auto",
+                        className="ps-4",
+                    ),
+                    # Carbon price column
+                    dbc.Col(
+                        [
+                            dbc.Label("Include Carbon price", className="mb-2 text-center"),
+                            html.Div(
+                                dbc.Switch(
+                                    id={"type": "co2-toggle", "index": "co2-toggle"},
+                                    value=False
+                                ),
+                                className="d-flex align-items-center justify-content-center",
+                                style={"minHeight": "38px"}  # Match button height
+                            ),
+                        ],
+                        width="auto",
+                        className="ps-4",
+                    ),
                 ],
+                className="mb-3 align-items-start",
             ),
             dbc.Row(
                 [
-                    dbc.Col(
-                        card.collapsible_card,
+                    html.Div(
+                        dbc.Col(
+                            card.collapsible_card,
+                            width=12,
+                        ),
                         id={"type": "generation-card-col", "index": card.card_id},
-                        width=12,
+                        className="card-container-animated card-visible",
                     )
                     for card in generation_cards
+                ],
+            ),
+            # Battery storage card (shown/hidden by callback)
+            html.Div(
+                dbc.Row([
+                    dbc.Col(
+                        battery_storage_card.collapsible_card,
+                        width=12,
+                    )
+                ]),
+                id="battery-storage-card-container",
+                className="card-container-animated card-hidden"  # Hidden by default with animation
+            ),
+            # CO2 card (shown/hidden by callback)
+            html.Div(
+                dbc.Row([
+                    dbc.Col(
+                        co2_card.collapsible_card,
+                        width=12,
+                    )
+                ]),
+                id="co2-card-container",
+                className="card-container-animated card-hidden"  # Hidden by default with animation
+            ),
+            # Optimise button at the bottom
+            dbc.Row(
+                [
+                    dbc.Col(
+                        dbc.Button(
+                            "Optimise",
+                            id="optimise-button",
+                            color="primary",
+                            className="w-100 mt-4",
+                            disabled=False,  # Will be controlled by callback
+                        ),
+                        width=12,
+                    )
                 ],
             ),
         ],
@@ -401,38 +472,51 @@ def toggle_collapsible_card(_n_clicks, is_open):
 
 
 @app.callback(
-    Output({"type": "cost-columns-container", "index": MATCH}, "children"),
-    Input({"type": "generation-radio", "index": MATCH}, "value"),
-    State({"type": "generation-radio", "index": MATCH}, "id"),
+    Output({"type": "subtype-pill", "card": MATCH, "subtype": ALL}, "active"),
+    Output({"type": "subtype-pill", "card": MATCH, "subtype": ALL}, "outline"),
+    Output({"type": "cost-columns-container", "card": MATCH}, "children"),
+    Input({"type": "subtype-pill", "card": MATCH, "subtype": ALL}, "n_clicks"),
+    State({"type": "subtype-pill", "card": MATCH, "subtype": ALL}, "id"),
+    prevent_initial_call=True,
 )
-def update_cost_columns(selected_subtype, radio_id):
-    """Update cost columns when user selects a different subtype (e.g., Onshore → Offshore)."""
-    if not selected_subtype:
-        return no_update
+def toggle_subtype_pills_and_update_columns(n_clicks_list, pill_ids):
+    """Toggle subtype pills and update cost columns when a subtype is selected."""
+    if not ctx.triggered_id:
+        return no_update, no_update, no_update
     
-    # Get the card instance using the card_id from the radio's id
-    card_id = radio_id["index"]
+    # Find which pill was clicked
+    clicked_pill = ctx.triggered_id
+    card_id = clicked_pill["card"]
+    selected_subtype = clicked_pill["subtype"]
+    
+    # Get the card instance
     card = generation_cards_dict.get(card_id)
-    
     if not card:
-        return no_update
+        return no_update, no_update, no_update
+    
+    # Update active states: only clicked pill is active
+    active_states = [pill["subtype"] == selected_subtype for pill in pill_ids]
+    outline_states = [not active for active in active_states]
     
     # Rebuild cost columns for the new subtype
     cost_columns = card.build_all_cost_columns(selected_subtype)
     
-    # Add the additional assumptions column for this subtype
-    cost_columns.append(card.additional_assumptions_column[selected_subtype])
+    # Add the additional assumptions column for this subtype (if it exists)
+    if card.has_cost_assumptions:
+        cost_columns.append(card.additional_assumptions_column[selected_subtype])
     
-    # Return the updated Row with columns
-    return dbc.Row([
+    # Return the updated states and columns
+    columns_row = dbc.Row([
         dbc.Col(c) for c in cost_columns
     ], className="mb-3")
+    
+    return active_states, outline_states, columns_row
 
 
 @app.callback(
     Output({"type": "generation-pill", "index": ALL}, "active"),
     Output({"type": "generation-pill", "index": ALL}, "outline"),
-    Output({"type": "generation-card-col", "index": ALL}, "style"),
+    Output({"type": "generation-card-col", "index": ALL}, "className"),
     Input({"type": "generation-pill", "index": ALL}, "n_clicks"),
     State({"type": "generation-pill", "index": ALL}, "active"),
     prevent_initial_call=True,
@@ -447,13 +531,13 @@ def toggle_generation_cards(_pill_clicks, pill_active_states):
             clicked_index = generation_card_ids.index(triggered_card_id)
             active_states[clicked_index] = not active_states[clicked_index]
 
-    card_styles = [
-        {"display": "block"} if is_active else {"display": "none"}
+    card_classes = [
+        "card-container-animated card-visible" if is_active else "card-container-animated card-hidden"
         for is_active in active_states
     ]
     pill_outlines = [not is_active for is_active in active_states]
 
-    return active_states, pill_outlines, card_styles
+    return active_states, pill_outlines, card_classes
 
 
 @app.callback(
@@ -559,8 +643,42 @@ def toggle_cost_level_buttons(n_clicks_list, current_active_states):
     return active_states, outline_states, input_disabled_states, input_styles
 
 
+@app.callback(
+    Output("battery-storage-card-container", "className"),
+    Input({"type": "storage-toggle", "index": "storage-toggle"}, "value"),
+)
+def toggle_battery_storage_card(storage_enabled):
+    """Show or hide the Battery Storage card based on the storage toggle."""
+    if storage_enabled:
+        return "card-container-animated card-visible"
+    else:
+        return "card-container-animated card-hidden"
+
+
+@app.callback(
+    Output("co2-card-container", "className"),
+    Input({"type": "co2-toggle", "index": "co2-toggle"}, "value"),
+)
+def toggle_co2_card(co2_enabled):
+    """Show or hide the CO2 card based on the carbon price toggle."""
+    if co2_enabled:
+        return "card-container-animated card-visible"
+    else:
+        return "card-container-animated card-hidden"
+
+
+@app.callback(
+    Output("optimise-button", "disabled"),
+    Input({"type": "generation-pill", "index": ALL}, "active"),
+)
+def update_optimise_button(pill_active_states):
+    """Enable Optimise button only if at least one generation source is selected."""
+    # Check if at least one pill is active
+    has_active = any(pill_active_states)
+    is_disabled = not has_active
+    
+    return is_disabled
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=8051)
-    # wind_card = GenerationInput(
-    #     "Wind"
-    # )
