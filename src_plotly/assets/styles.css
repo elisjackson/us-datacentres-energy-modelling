@@ -203,16 +203,11 @@
     align-items: center;
     gap: 0.5rem;
 }
-/* Let the slider take remaining space; value span keeps reserved width so range text doesn’t wrap */
+/* Let the slider take remaining space; slider doesn’t wrap */
 .row-slider-wrapper .row-slider-dcc,
 .row-slider-wrapper .row-rangeslider-dcc {
     flex: 1;
     min-width: 0;
-}
-.row-slider-value {
-    white-space: nowrap;
-    flex-shrink: 0;
-    min-width: 5em;
 }
 .row-slider-input.form-range {
     width: 100%;
@@ -266,6 +261,13 @@
 .row-slider-wrapper .row-slider-dcc,
 .row-slider-wrapper .row-rangeslider-dcc {
     width: 100%;
+}
+/* Dash 4.0 slider direct-input: scope to optimiser form so border/background apply (single class, no !important conflict) */
+.row-slider-wrapper .row-slider-dcc .dash-range-slider-input {
+    color: #ecf0f1;
+    background-color: #2c3e50;
+    border: 1px solid #375a7f;
+    font-size: 0.875rem;
 }
 /* Workaround: dcc applies a wrapper with padding 0 25px 25px (from tooltip logic), so the
    slider sits at the top of the box and looks misaligned. Cancel the bottom padding. */
@@ -324,10 +326,34 @@
     background-color: #2c3e50 !important;
     cursor: not-allowed !important;
 }
-.row-disabled .row-slider-value {
-    opacity: 0.6;
-    color: #7f8c8d;
+
+/* Force blue theme in optimiser sliders (override Dash 4 default purple) */
+.row-slider-wrapper .row-slider-dcc {
+    accent-color: #375a7f;
+    /* Dash 4 design tokens: override so thumb/track use blue instead of default purple */
+    --Dash-Fill-Interactive-Strong: #375a7f;
+    --Dash-Fill-Interactive-Weak: #375a7f;
+    --Dash-Fill-Inverse-Strong: #282828;
+    --Dash-Shading-Weak: rgba(0, 0, 0, 0.2);
 }
+/* Dash 4.0 new class names (dash-slider-thumb, etc.) – explicit overrides in case variables aren’t enough */
+.row-slider-wrapper .dash-slider-thumb {
+    background-color: #375a7f !important;
+    border-color: #282828 !important;
+}
+.row-slider-wrapper .dash-slider-track,
+.row-slider-wrapper [class*="dash-slider"][class*="track"] {
+    background-color: #375a7f !important;
+}
+/* Legacy rc-slider and generic patterns (older Dash / fallback) */
+.row-slider-wrapper [class*="track"] {
+    background-color: #375a7f !important;
+}
+.row-slider-wrapper [class*="handle"] {
+    background-color: #375a7f !important;
+    border-color: #282828 !important;
+}
+
 
 /* Optimiser form: hide columns but keep their space so sliders align across sections (e.g. Data Centre) */
 .optimiser-col-hidden {
@@ -359,4 +385,22 @@
 .card-body {
     color: #ecf0f1;
     padding: 1rem;
+}
+
+/* Card animation for appearing/disappearing - rolls up/down */
+.card-container-animated {
+    transition: max-height 0.3s ease-in-out, margin 0.3s ease-in-out, padding 0.3s ease-in-out;
+    overflow: hidden;
+}
+
+.card-container-animated.card-hidden {
+    max-height: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.card-container-animated.card-visible {
+    max-height: 2000px; /* Large enough for any card content */
 }
