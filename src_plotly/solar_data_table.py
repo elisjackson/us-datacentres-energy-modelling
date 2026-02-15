@@ -9,6 +9,19 @@ def register_callbacks(app):
     Call this from main.py after creating the app: solar_data_table.register_callbacks(app).
     """
     @app.callback(
+        Output("pv-latlon-store", "data"),
+        Input("pv-location-data", "data"),
+    )
+    def store_pv_latlon(pv_location_data):
+        """Store only the lat/lon coordinates from the PV location."""
+        if not pv_location_data or "lat" not in pv_location_data or "lon" not in pv_location_data:
+            return None
+        return {
+            "lat": pv_location_data["lat"],
+            "lon": pv_location_data["lon"]
+        }
+    
+    @app.callback(
         Output("solar-data-table", "children"),
         Input("pv-location-data", "data"),
     )
@@ -17,26 +30,27 @@ def register_callbacks(app):
         key_mappings = {
             "ssrd": "GHI (W/m²)",
             "fdir": "DNI (W/m²)",
+            "lat": "Latitude",
+            "lon": "Longitude",
         }
 
         # template empty dataframe
-        empty_df = pd.DataFrame({"Value": [""] * 3}, index=["GHI (W/m²)", "DNI (W/m²)", "Test"])
+        empty_df = pd.DataFrame({"Value": [""] * 4}, index=["GHI (W/m²)", "DNI (W/m²)", "Latitude", "Longitude"])
 
         if not pv_location_data:
             return dbc.Table.from_dataframe(empty_df, index=True, index_label="Property")
 
         df = pd.DataFrame([pv_location_data])
         df = df.rename(columns=key_mappings)
-        df = df[[c for c in ["GHI (W/m²)", "DNI (W/m²)"] if c in df.columns]]
+        df = df[[c for c in ["GHI (W/m²)", "DNI (W/m²)", "Latitude", "Longitude"] if c in df.columns]]
 
         if df.empty:
             return dbc.Table.from_dataframe(empty_df, index=True, index_label="Property")
 
         numeric_cols = df.select_dtypes(include="number").columns
-        df[numeric_cols] = df[numeric_cols].round(2)
+        df[numeric_cols] = df[numeric_cols].round(4)
         df = df.T
         df.columns = ["Value"]
-        df.loc["Test", "Value"] = round(random.random(), 2)
 
         return dbc.Table.from_dataframe(df, index=True, index_label="Property")
 

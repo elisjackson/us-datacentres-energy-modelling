@@ -96,14 +96,23 @@ def _get_gdf_data(country: str):
 
 
 def _gdf_row_from_click(gdf, click_data):
-    """Extract the clicked row from gdf. Returns dict or None. Use with clickData points[0].location."""
+    """Extract the clicked row from gdf with centroid coordinates. Returns dict or None. Use with clickData points[0].location."""
     if not click_data or not click_data.get("points"):
         return None
     loc = click_data["points"][0].get("location")
     if loc is None:
         return None
     row = gdf.loc[gdf["id"] == loc]
-    return row.drop(columns="geometry").iloc[0].to_dict() if not row.empty else None
+    if row.empty:
+        return None
+    
+    # Get centroid coordinates before dropping geometry
+    centroid = row.geometry.iloc[0].centroid
+    result = row.drop(columns="geometry").iloc[0].to_dict()
+    result["lat"] = centroid.y
+    result["lon"] = centroid.x
+    
+    return result
 
 
 def _get_geo_data(filepath, color_on, country):

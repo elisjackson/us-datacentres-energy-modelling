@@ -749,6 +749,7 @@ def register_callbacks(app):
         State({"type": "cost-value-input", "card": ALL, "param": ALL, "level": ALL}, "id"),
         State({"type": "storage-toggle", "index": "storage-toggle"}, "value"),
         State({"type": "co2-toggle", "index": "co2-toggle"}, "value"),
+        State("pv-latlon-store", "data"),
         prevent_initial_call=True,
     )
     def collect_optimiser_parameters(
@@ -764,6 +765,7 @@ def register_callbacks(app):
         cost_input_ids,
         storage_enabled,
         co2_enabled,
+        pv_latlon,
     ):
         """Collect all form parameters and structure them for the optimiser."""
         
@@ -773,6 +775,7 @@ def register_callbacks(app):
         # Build the parameters dictionary
         parameters = {
             'data_centre_capacity': dc_capacity,
+            'location': pv_latlon if pv_latlon else None,
             'generation': {},
             'battery_storage': {'enabled': storage_enabled},
             'co2': {'enabled': co2_enabled},
@@ -836,14 +839,13 @@ def register_callbacks(app):
                             }
                             break
             
-            # Extract additional assumptions for this subtype
-            assumptions = {}
+            # Extract additional assumptions for this subtype and add to costs
             if card.has_cost_assumptions:
                 assumptions_df = card.cost_assumptions_df[
                     card.cost_assumptions_df["subtype"] == selected_subtype
                 ]
                 for _, row in assumptions_df.iterrows():
-                    assumptions[row["cost_parameter"]] = {
+                    costs[row["cost_parameter"]] = {
                         'value': row["value"],
                         'unit': row["unit"],
                     }
@@ -852,12 +854,103 @@ def register_callbacks(app):
             parameters['generation'][gen_type] = {
                 'enabled': True,
                 'subtype': selected_subtype,
-                'costs': costs,
-                'assumptions': assumptions
+                'costs': costs
+            }
+        
+        # Extract Battery Storage parameters if enabled
+        if storage_enabled:
+            card = battery_storage_card
+            card_id = card.card_id
+            selected_subtype = card.subtypes[0]  # Battery Storage has single subtype
+            
+            # Extract costs
+            costs = {}
+            for i, (active, btn_id) in enumerate(zip(cost_btn_active, cost_btn_ids)):
+                if btn_id["card"] == card_id and active:
+                    param = btn_id["param"]
+                    level = btn_id["level"]
+                    
+                    for j, inp_id in enumerate(cost_input_ids):
+                        if (inp_id["card"] == card_id and 
+                            inp_id["param"] == param and 
+                            inp_id["level"] == level):
+                            value = cost_input_values[j]
+                            
+                            unit_df = card.cost_choices_df[
+                                (card.cost_choices_df["subtype"] == selected_subtype) &
+                                (card.cost_choices_df["cost_parameter"] == param)
+                            ]
+                            unit = unit_df["unit"].unique()[0] if not unit_df.empty else ""
+                            
+                            costs[param] = {
+                                'value': value,
+                                'unit': unit
+                            }
+                            break
+            
+            # Extract assumptions and add to costs
+            if card.has_cost_assumptions:
+                assumptions_df = card.cost_assumptions_df[
+                    card.cost_assumptions_df["subtype"] == selected_subtype
+                ]
+                for _, row in assumptions_df.iterrows():
+                    costs[row["cost_parameter"]] = {
+                        'value': row["value"],
+                        'unit': row["unit"],
+                        
+                    }
+            
+            parameters['battery_storage'] = {
+                'enabled': True,
+                'subtype': selected_subtype,
+                'costs': costs
+            }
+        
+        # Extract CO2 parameters if enabled
+        if co2_enabled:
+            card = co2_card
+            card_id = card.card_id
+            selected_subtype = card.subtypes[0]  # CO2 has single subtype
+            
+            # Extract costs
+            costs = {}
+            for i, (active, btn_id) in enumerate(zip(cost_btn_active, cost_btn_ids)):
+                if btn_id["card"] == card_id and active:
+                    param = btn_id["param"]
+                    level = btn_id["level"]
+                    
+                    for j, inp_id in enumerate(cost_input_ids):
+                        if (inp_id["card"] == card_id and 
+                            inp_id["param"] == param and 
+                            inp_id["level"] == level):
+                            value = cost_input_values[j]
+                            
+                            unit_df = card.cost_choices_df[
+                                (card.cost_choices_df["subtype"] == selected_subtype) &
+                                (card.cost_choices_df["cost_parameter"] == param)
+                            ]
+                            unit = unit_df["unit"].unique()[0] if not unit_df.empty else ""
+                            
+                            costs[param] = {
+                                'level': level,
+                                'value': value,
+                                'unit': unit
+                            }
+                            break
+            
+            # CO2 has no assumptions
+            parameters['co2'] = {
+                'enabled': True,
+                'subtype': selected_subtype,
+                'costs': costs
             }
         
         print("Collected parameters:")
         print(json.dumps(parameters, indent=2))
+
+        # save collected parameters to file
+        with open("collected_parameters.json", "w") as f:
+            json.dump(parameters, f, indent=2)
         
         # TODO: Call execute_optimisation with parameters
         # For now, just store parameters and show them as "results"
