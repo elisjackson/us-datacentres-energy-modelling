@@ -282,12 +282,12 @@ def main(lat: float, lon: float, data_source: str = 'era5'):
     mc.run_model(weather)
 
     # Extract results
-    ac_power = mc.results.ac  # AC power in watts
-    dc_power = mc.results.dc  # DC power (array output)
+    ac_power = mc.results.ac  # AC power in watts, pd.Series
+    dc_power = mc.results.dc  # DC power, pd.Series
 
     # Convert to kW
     ac_power_kw = ac_power / 1000
-    dc_power_kw = dc_power[0] / 1000  # dc is a tuple, take first element
+    dc_power_kw = dc_power / 1000
 
     # Create results DataFrame
     results = pd.DataFrame({
@@ -303,8 +303,13 @@ def main(lat: float, lon: float, data_source: str = 'era5'):
 
     # Calculate annual energy
     annual_energy_kwh = results['ac_power_kw'].sum()
+    annual_dc_energy_kwh = results['dc_power_kw'].sum()
+    print(f"Annual DC energy production: {annual_dc_energy_kwh:,.0f} kWh")
     print(f"\nAnnual AC energy production: {annual_energy_kwh:,.0f} kWh")
-    print(f"Capacity factor: {1e3 * annual_energy_kwh / (ac_rating * 8760) * 100:.1f}%")
+    # Capacity factor vs DC nameplate (kWp) — industry standard for solar; UK typically ~10–13%
+    hours_per_year = 8760
+    cf_dc_pct = 100 * annual_energy_kwh / (system_dc_capacity * hours_per_year)
+    print(f"Capacity factor (vs kWp): {cf_dc_pct:.1f}%")
 
     return results
 
