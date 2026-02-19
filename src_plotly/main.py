@@ -70,6 +70,7 @@ accordion = dbc.Accordion(
                                 dcc.Store(id="pv-location-data"),
                                 dcc.Store(id="wind-location-data"),
                                 dcc.Store(id="pv-latlon-store"),
+                                dcc.Store(id="wind-latlon-store"),
                                 dcc.Graph(
                                     id="map",
                                     style={"height": "600px"},

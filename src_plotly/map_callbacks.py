@@ -448,6 +448,22 @@ def register_callbacks(app):
         return _gdf_row_from_click(gdf, wind_click)
 
     @app.callback(
+        Output("wind-latlon-store", "data"),
+        Input("wind-location-data", "data"),
+    )
+    def store_wind_latlon(wind_location_data):
+        """Store lat/lon and onshore/offshore flag from the Wind location."""
+        if not wind_location_data or "lat" not in wind_location_data or "lon" not in wind_location_data:
+            return None
+        result = {
+            "lat": wind_location_data["lat"],
+            "lon": wind_location_data["lon"],
+        }
+        if "onshore" in wind_location_data:
+            result["onshore"] = bool(wind_location_data["onshore"])
+        return result
+
+    @app.callback(
         Output("map-helper-text", "children"),
         Input("radioitems-input", "value"),
     )

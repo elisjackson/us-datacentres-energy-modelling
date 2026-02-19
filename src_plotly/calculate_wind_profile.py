@@ -41,19 +41,36 @@ def extrapolate_wind_profile(
     return wind_speed
 
 
-def main():
+def main(
+    lat: float = 0,  # TODO use this
+    lon: float = 0,  # TODO use this
+    onshore: bool = True,  # TODO use this
+    era5_df: pd.DataFrame = None,
+    ) -> pd.DataFrame:
+    """
+    Get PU Wind profile for a given location.
+    
+    Parameters:
+    -----------
+    lat : float
+        Latitude
+    lon : float
+        Longitude
+    """
 
-    # Read ERA5 data
-    data_path = Path("data/processed/single_point_UK_2025.parquet")
+    if era5_df is None:
 
-    if not data_path.exists():
-        raise FileNotFoundError(
-            f"ERA5 data file not found: {data_path}\n"
-            "Run meteo_data/split_into_parts.py first to generate the single-point data."
-        )
+        # Read ERA5 data
+        data_path = Path("data/processed/single_point_UK_2025.parquet")
 
-    # Read the parquet file
-    era5_df = pd.read_parquet(data_path)
+        if not data_path.exists():
+            raise FileNotFoundError(
+                f"ERA5 data file not found: {data_path}\n"
+                "Run meteo_data/split_into_parts.py first to generate the single-point data."
+            )
+
+        # Read the parquet file
+        era5_df = pd.read_parquet(data_path)
 
     # extrapolate 100m wind speed to the hub height
     hub_height = 140

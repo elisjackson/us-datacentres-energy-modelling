@@ -9,12 +9,13 @@ This script demonstrates how to:
 Alternatively, use pvlib's built-in weather data sources (PVGIS) for comparison
 """
 
+from typing import Literal
 import pandas as pd
 import numpy as np
 from pvlib import location, pvsystem, modelchain, temperature, iotools
 from pathlib import Path
 
-def prepare_era5_data(ssrd, fdir, timestamps):
+def era5_to_ghi_dhi_dni(ssrd, fdir, timestamps, solar_position) -> pd.DataFrame:
     """
     Convert ERA5 accumulated radiation to instantaneous irradiance (W/m²)
     
@@ -50,13 +51,8 @@ def prepare_era5_data(ssrd, fdir, timestamps):
         'dhi': dhi
     }, index=timestamps)
     
-    return irradiance
-
-
-def calculate_dni_from_fdir(fdir, irradiance_df, solar_position):
     """
-    Calculate DNI directly from fdir (direct radiation on horizontal surface)
-    
+    Calculate DNI directly from fdir (direct radiation on horizontal surface
     Since fdir = DNI x cos(zenith), then:
     DNI = fdir / cos(zenith)
     """
@@ -73,9 +69,34 @@ def calculate_dni_from_fdir(fdir, irradiance_df, solar_position):
     dni[solar_position['apparent_zenith'] > 87] = 0
     dni = np.maximum(dni, 0)
     
-    irradiance_df['dni'] = dni
+    irradiance['dni'] = dni
+
+    return irradiance
+
+
+# def calculate_dni_from_fdir(fdir, irradiance_df, solar_position):
+#     """
+#     Calculate DNI directly from fdir (direct radiation on horizontal surface)
     
-    return irradiance_df
+#     Since fdir = DNI x cos(zenith), then:
+#     DNI = fdir / cos(zenith)
+#     """
+    
+#     cos_zenith = np.cos(np.radians(solar_position['apparent_zenith']))
+    
+#     # Avoid division by zero/very small numbers when sun is near horizon
+#     cos_zenith = np.maximum(cos_zenith, 0.01)
+    
+#     # Calculate DNI directly from the direct horizontal component
+#     dni = fdir / cos_zenith
+    
+#     # Set to zero when sun is below / near horizon
+#     dni[solar_position['apparent_zenith'] > 87] = 0
+#     dni = np.maximum(dni, 0)
+    
+#     irradiance_df['dni'] = dni
+    
+#     return irradiance_df
 
 
 def get_pvgis_weather(lat: float, lon: float):
@@ -114,30 +135,14 @@ def get_pvgis_weather(lat: float, lon: float):
     return weather
 
 
-def main(lat: float, lon: float, data_source: str = 'era5'):
+def get_data_from_source(
+    lat: float,
+    lon: float,
+    site: location.Location,
+    data_source: Literal["pvgis", "era5"] = "era5",
+    ) -> pd.DataFrame:
     """
-    Run PV simulation with specified weather data source
-    
-    Parameters:
-    -----------
-    lat : float
-        Latitude
-    lon : float
-        Longitude
-    data_source : str, default 'era5'
-        Weather data source: 'era5' or 'pvgis'
     """
-    
-    altitude = 1  # meters
-    timezone = 'UTC'
-    
-    # Create location object
-    site = location.Location(lat, lon, tz=timezone, altitude=altitude)
-    
-    # =============================================================================
-    # STEP 2: Load weather data based on source
-    # =============================================================================
-    
     if data_source.lower() == 'pvgis':
         # Use PVGIS data
         weather_data = get_pvgis_weather(lat, lon)
@@ -165,41 +170,91 @@ def main(lat: float, lon: float, data_source: str = 'era5'):
 
         # Read the parquet file
         era5_df = pd.read_parquet(data_path)
-
-        # Extract radiation variables (W/m²)
-        ssrd = era5_df['ssrd'].values  # Surface solar radiation downwards
-        fdir = era5_df['fdir'].values  # Total sky direct solar radiation at surface
-        
-        # Diagnostic: check raw ERA5 values
-        print(f"\nRaw ERA5 data statistics:")
-        print(f"  ssrd - mean: {ssrd.mean():.1f}, max: {ssrd.max():.1f}, min: {ssrd.min():.1f}")
-        print(f"  fdir - mean: {fdir.mean():.1f}, max: {fdir.max():.1f}, min: {fdir.min():.1f}")
-        print(f"  Expected mean GHI for UK: ~50-100 W/m²")
-        print(f"  Expected max GHI for UK: ~800-1000 W/m²")
-
-        # Get timestamps from the index
-        timestamps = era5_df.index
-        timestamps_local = timestamps
-        
-        # Calculate solar position for ERA5 processing
-        print("\nCalculating solar position...")
-        solar_position = site.get_solarposition(timestamps_local)
-        
-        # Process ERA5 data to irradiance components
-        print("Processing ERA5 data to irradiance components...")
-        irradiance = prepare_era5_data(ssrd, fdir, timestamps_local)
-        irradiance = calculate_dni_from_fdir(fdir, irradiance, solar_position)
-
-        print(f"\nERA5 Irradiance statistics (W/m²):")
-        print(irradiance.describe())
+        # process in preparation for PV simulation
+        irradiance = prepare_era5_data(era5_df, site)
         
     else:
         raise ValueError(f"Unknown data source: {data_source}. Use 'era5' or 'pvgis'")
 
-    # =============================================================================
-    # STEP 6: Define PV system parameters
-    # =============================================================================
+    return irradiance
 
+
+def prepare_era5_data(era5_df: pd.DataFrame, site: location.Location) -> pd.DataFrame:
+    """
+    Prepare ERA5 data for PV simulation.
+    """
+    # Extract radiation variables (W/m²)
+    ssrd = era5_df['ssrd'].values  # Surface solar radiation downwards
+    fdir = era5_df['fdir'].values  # Total sky direct solar radiation at surface
+    
+    # Diagnostic: check raw ERA5 values
+    print(f"\nRaw ERA5 data statistics:")
+    print(f"  ssrd - mean: {ssrd.mean():.1f}, max: {ssrd.max():.1f}, min: {ssrd.min():.1f}")
+    print(f"  fdir - mean: {fdir.mean():.1f}, max: {fdir.max():.1f}, min: {fdir.min():.1f}")
+    print(f"  Expected mean GHI for UK: ~50-100 W/m²")
+    print(f"  Expected max GHI for UK: ~800-1000 W/m²")
+
+    # Get timestamps from the index
+    timestamps = era5_df.index
+    timestamps_local = timestamps
+    
+    # Calculate solar position for ERA5 processing
+    print("\nCalculating solar position...")
+    solar_position = site.get_solarposition(timestamps_local)
+    
+    # Process ERA5 data to irradiance components
+    print("Processing ERA5 data to irradiance components...")
+    irradiance = era5_to_ghi_dhi_dni(ssrd, fdir, timestamps_local, solar_position)
+
+    print(f"\nERA5 Irradiance statistics (W/m²):")
+    print(irradiance.describe())
+
+    return irradiance
+
+
+def main(
+    lat: float,
+    lon: float,
+    data_source: Literal["pvgis", "era5"] | None = "era5",
+    era5_data: pd.DataFrame = None,
+    ) -> pd.DataFrame:
+    """
+    Get PU Solar PV profile for a given location.
+    
+    Parameters:
+    -----------
+    lat : float
+        Latitude
+    lon : float
+        Longitude
+    data_source : str, default 'era5'
+        Weather data source: 'era5' or 'pvgis'
+    era5_data : pd.DataFrame, default None
+        Optional - ERA5 data to use instead of fetching from file
+        Expects columns: ssrd, fdir, index (DatetimeIndex)
+    """
+
+    # validate arguments
+    if data_source and era5_data is not None:
+        raise ValueError("Only one of data_source or era5_data arguments can be provided")
+    elif not data_source and era5_data is None:
+        raise ValueError("One of data_source or era5_data arguments must be provided")
+
+    
+    altitude = 1  # meters
+    timezone = 'UTC'
+    
+    # Create location object
+    site = location.Location(lat, lon, tz=timezone, altitude=altitude)
+    
+    if data_source:
+        # load the data
+        irradiance = get_data_from_source(lat, lon, site, data_source)
+    else:
+        # use the provided era5 dataframe
+        irradiance = prepare_era5_data(era5_data, site)
+
+    # define PV system parameters
     dc_rating = 1000  # W
 
     # Module parameters (example: Canadian Solar CS6K-280M)
@@ -236,13 +291,12 @@ def main(lat: float, lon: float, data_source: str = 'era5'):
     # Calculate total system DC capacity
     total_modules = system_parameters['modules_per_string'] * system_parameters['strings_per_inverter']
     system_dc_capacity = total_modules * module_parameters['pdc0'] / 1000  # kW
+    system_ac_capacity = ac_rating / 1000  # kW
 
     print(f"\nPV System Configuration:")
     print(f"  DC capacity: {system_dc_capacity:.1f} kW")
 
-    # =============================================================================
-    # STEP 7: Create PV system and model chain
-    # =============================================================================
+    # create PV system and model chain
 
     # Temperature model parameters
     temp_model_params = temperature.TEMPERATURE_MODEL_PARAMETERS['sapm']['open_rack_glass_glass']
@@ -266,9 +320,7 @@ def main(lat: float, lon: float, data_source: str = 'era5'):
         spectral_model='no_loss',
     )
 
-    # =============================================================================
-    # STEP 8: Run the model to get power output
-    # =============================================================================
+    # run the model to get power output
 
     print("\nRunning PV model...")
 
@@ -276,7 +328,7 @@ def main(lat: float, lon: float, data_source: str = 'era5'):
         'ghi': irradiance['ghi'],
         'dhi': irradiance['dhi'],
         'dni': irradiance['dni'],
-    }, index=timestamps_local)
+    }, index=irradiance.index)
 
     # Run the model
     mc.run_model(weather)
@@ -296,7 +348,7 @@ def main(lat: float, lon: float, data_source: str = 'era5'):
         'ghi': weather['ghi'],
         'dni': weather['dni'],
         'dhi': weather['dhi'],
-    }, index=timestamps_local)
+    }, index=irradiance.index)
 
     print("\nPower output statistics (kW):")
     print(results[['ac_power_kw', 'dc_power_kw']].describe())
@@ -306,12 +358,15 @@ def main(lat: float, lon: float, data_source: str = 'era5'):
     annual_dc_energy_kwh = results['dc_power_kw'].sum()
     print(f"Annual DC energy production: {annual_dc_energy_kwh:,.0f} kWh")
     print(f"\nAnnual AC energy production: {annual_energy_kwh:,.0f} kWh")
-    # Capacity factor vs DC nameplate (kWp) — industry standard for solar; UK typically ~10–13%
+    
     hours_per_year = 8760
-    cf_dc_pct = 100 * annual_energy_kwh / (system_dc_capacity * hours_per_year)
-    print(f"Capacity factor (vs kWp): {cf_dc_pct:.1f}%")
+    cf_ac_pct = 100 * annual_energy_kwh / (system_ac_capacity * hours_per_year)
+    print(f"Capacity factor (AC): {cf_ac_pct:.1f}%")
 
-    return results
+    ac_pu_power = results[['ac_power_kw']] / system_ac_capacity
+    ac_pu_power.rename(columns={'ac_power_kw': 'pu_power'}, inplace=True)
+
+    return ac_pu_power
 
 
 if __name__ == "__main__":
