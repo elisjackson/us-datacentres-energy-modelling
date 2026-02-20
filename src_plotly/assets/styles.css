@@ -135,6 +135,13 @@ body {
     --bs-accordion-body-padding-x: 0;
 }
 
+/* Solar PV data table background */
+#solar-data-table table,
+#solar-data-table th,
+#solar-data-table td {
+    background-color: #070f1d !important;
+}
+
 /* Plotly colorbar text – map backend may ignore tickfont/title font, so override with CSS */
 #map .colorbar text,
 #map .cbtitle,

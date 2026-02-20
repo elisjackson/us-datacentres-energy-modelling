@@ -83,9 +83,10 @@ accordion = dbc.Accordion(
                             ],
                             width=8,
                             style={
-                                "backgroundColor": "rgba(255,255,255,0.06)",
+                                "backgroundColor": "rgb(5, 13, 24)",
                                 "borderRadius": "8px",
-                                "padding": "1rem"
+                                "padding": "1rem",
+                                "border": "1px solid rgb(111, 111, 111)"
                             },
                         ),
                         dbc.Col(

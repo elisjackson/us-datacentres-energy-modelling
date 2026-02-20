@@ -483,10 +483,10 @@ def concept_form_layout():
             ),
         ],
         style={
-            "backgroundColor": "rgba(255,255,255,0.06)",
+            "backgroundColor": "rgb(5, 13, 24)",
             "borderRadius": "8px",
-            "width": "100%",
             "padding": "1rem",
+            "border": "1px solid rgb(111, 111, 111)"
         },
     )
 
