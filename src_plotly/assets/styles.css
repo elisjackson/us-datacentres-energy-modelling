@@ -1,3 +1,10 @@
+body, * {
+    font-family: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+body {
+    background-color: #08090a !important;
+}
+
 /* Reusable small grey helper text (footnotes, captions, etc.) */
 .text-muted-small {
     font-size: 0.8rem;
@@ -21,11 +28,6 @@
 .app-layout > *:first-child {
     margin-bottom: 0 !important;
 }
-.app-layout .row.layout-row {
-    padding-top: 0 !important;
-    margin-bottom: 0 !important;
-    margin-top: -1.5rem !important;
-}
 
 /* Sticky header */
 .app-header {
@@ -39,9 +41,9 @@
     width: 100%;
     min-height: 3rem;
     margin: 0 !important;
-    background-color: #222222;
+    background-color: #08090a;
     padding: 0.75rem 1rem;
-    border-bottom: 1px solid #34495e;
+    border-bottom: 1px solid #25344c;
 }
 .app-header-title {
     margin: 0;
@@ -51,73 +53,21 @@
 
 /* Main content spacing */
 .content {
-    padding: 2rem 3rem;
+    padding: 2rem 2rem;
     padding-top: 2.5rem;
 }
 
-.layout-row {
-    min-height: 100vh;
-    align-items: stretch;
-    margin-top: 0;
-}
-
-.sidebar-col {
-    display: flex;
-    position: sticky;
-    top: 4.5rem;
-    height: calc(100vh - 4.5rem);
-    padding-top: 0 !important;
-    margin-top: -1.5rem !important;
-}
-.sidebar-col .sidebar {
-    margin-top: -1.5rem !important;
-}
-.sidebar {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-height: 0;
-    padding: 1.5rem;
-    padding-top: 3rem;
-    background-color: #2b2b2b;
-    overflow-y: auto;
-    text-align: center;
-}
-.sidebar .nav {
-    align-items: center;
-    flex-direction: column;
-}
-.sidebar .nav-link {
-    justify-content: center;
-}
-.sidebar > hr {
-    align-self: stretch;
-    width: 100%;
-}
-.sidebar-footer {
-    margin-top: auto;
-    padding-top: 1.5rem;
-    text-align: center;
-}
-.sidebar-credit {
-    display: block;
-    font-size: 0.85rem;
-    color: #95a5a6;
-    margin-bottom: 0.5rem;
-}
-.sidebar-footer-links {
+.header-links {
     display: flex;
     align-items: center;
-    justify-content: center;
     gap: 0.75rem;
 }
-.sidebar-footer-icon {
+.header-icon {
     height: 1.25rem;
     width: 1.25rem;
     opacity: 0.9;
 }
-.sidebar-footer-icon:hover {
+.header-icon:hover {
     opacity: 1;
 }
 
@@ -157,15 +107,15 @@
 /* Accordion dark theme – match DARKLY */
 .accordion,
 .accordion-item {
-    border-color: #34495e !important;
+    border-color: #08090a !important;
 }
 .accordion-button {
-    background-color: #2c3e50 !important;
+    background-color: #141e2e !important;
     color: #ecf0f1 !important;
     border-color: #34495e !important;
 }
 .accordion-button:not(.collapsed) {
-    background-color: #2c3e50 !important;
+    background-color: #141e2e !important;
     color: #ecf0f1 !important;
     box-shadow: none;
 }
@@ -177,7 +127,7 @@
     filter: brightness(0) invert(1);
 }
 .accordion-body {
-    background-color: #222;
+    background-color: #08090a;
     color: #ecf0f1;
     border-color: #34495e;
 }

@@ -10,7 +10,11 @@ from src_plotly.solar_data_table import solar_data_table_footer
 from src_plotly.concept_form import concept_form_layout
 from src_plotly.results_accordion import results_layout, register_callbacks as results_register_callbacks
 
-external_stylesheets = [dbc.themes.DARKLY, dbc.icons.BOOTSTRAP]
+external_stylesheets = [
+    dbc.themes.DARKLY,
+    dbc.icons.BOOTSTRAP,
+    "https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap",
+]
 app = Dash(__name__, external_stylesheets=external_stylesheets)
 map_callbacks.register_callbacks(app)
 wind_profile.register_callbacks(app)
@@ -132,6 +136,7 @@ accordion = dbc.Accordion(
         ),
     ],
     id="main-accordion",
+    flush=True,
     active_item="accordion-location",
 )
 
@@ -145,15 +150,7 @@ LINKEDIN_ICON_SVG = (
     "%3C/svg%3E"
 )
 
-app_header = html.Div(
-    [
-        html.H1("Datacentre energy optimiser", className="app-header-title"),
-    ],
-    id="app-header",
-    className="app-header",
-)
-
-sidebar_footer_links = html.Div(
+header_links = html.Div(
     [
         html.A(
             href=GITHUB_URL,
@@ -162,7 +159,7 @@ sidebar_footer_links = html.Div(
             children=html.Img(
                 src="https://cdn.simpleicons.org/github/ecf0f1",
                 alt="GitHub",
-                className="sidebar-footer-icon",
+                className="header-icon",
             ),
         ),
         html.A(
@@ -172,32 +169,20 @@ sidebar_footer_links = html.Div(
             children=html.Img(
                 src=LINKEDIN_ICON_SVG,
                 alt="LinkedIn",
-                className="sidebar-footer-icon",
+                className="header-icon",
             ),
         ),
     ],
-    className="sidebar-footer-links",
+    className="header-links",
 )
 
-sidebar = html.Div(
+app_header = html.Div(
     [
-        dbc.Nav(
-            [
-                dbc.NavLink("Home", href="#"),
-                dbc.NavLink("Analytics", href="#"),
-            ],
-            vertical=True,
-            pills=True,
-        ),
-        html.Div(
-            [
-                html.Span("Elis Jackson", className="sidebar-credit"),
-                sidebar_footer_links,
-            ],
-            className="sidebar-footer",
-        ),
+        html.H1("Datacentre energy optimiser", className="app-header-title"),
+        header_links,
     ],
-    className="sidebar",
+    id="app-header",
+    className="app-header",
 )
 
 main_content = html.Div(
@@ -211,13 +196,7 @@ app.layout = dbc.Container(
     html.Div(
         [
             app_header,
-            dbc.Row(
-                [
-                    dbc.Col(sidebar, width=2, className="sidebar-col"),
-                    dbc.Col(main_content, width=10),
-                ],
-                className="layout-row g-0",
-            ),
+            main_content,
         ],
         className="app-layout",
     ),

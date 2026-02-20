@@ -463,7 +463,6 @@ def concept_form_layout():
             # Stores for optimisation workflow
             dcc.Store(id="optimiser-parameters-store"),
             dcc.Store(id="optimiser-trigger-run"),
-            dcc.Store(id="optimiser-results-data"),
             # Loading modal
             dbc.Modal(
                 [
