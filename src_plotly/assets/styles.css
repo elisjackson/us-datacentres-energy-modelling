@@ -113,6 +113,8 @@ body {
     background-color: #141e2e !important;
     color: #ecf0f1 !important;
     border-color: #34495e !important;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
 }
 .accordion-button:not(.collapsed) {
     background-color: #141e2e !important;
@@ -130,6 +132,7 @@ body {
     background-color: #08090a;
     color: #ecf0f1;
     border-color: #34495e;
+    --bs-accordion-body-padding-x: 0;
 }
 
 /* Plotly colorbar text – map backend may ignore tickfont/title font, so override with CSS */
