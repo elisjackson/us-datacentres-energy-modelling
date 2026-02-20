@@ -4,6 +4,9 @@ body, * {
 body {
     background-color: #08090a !important;
 }
+:root {
+    --Dash-Fill-Interactive-Strong: rgb(5, 13, 24);
+}
 
 /* Reusable small grey helper text (footnotes, captions, etc.) */
 .text-muted-small {
@@ -288,26 +291,39 @@ body {
 }
 
 /* Force blue theme in optimiser sliders (override Dash 4 default purple) */
-.row-slider-wrapper .row-slider-dcc {
-    accent-color: #375a7f;
-    /* Dash 4 design tokens: override so thumb/track use blue instead of default purple */
-    --Dash-Fill-Interactive-Strong: #375a7f;
+.row-slider-wrapper {
     --Dash-Fill-Interactive-Weak: #375a7f;
     --Dash-Fill-Inverse-Strong: #282828;
     --Dash-Shading-Weak: rgba(0, 0, 0, 0.2);
 }
+.row-slider-wrapper .row-slider-dcc {
+    accent-color: #375a7f;
+}
 /* Dash 4.0 new class names (dash-slider-thumb, etc.) – explicit overrides in case variables aren’t enough */
 .row-slider-wrapper .dash-slider-thumb {
-    background-color: #375a7f !important;
     border-color: #282828 !important;
 }
+.dash-slider-track,
 .row-slider-wrapper .dash-slider-track,
 .row-slider-wrapper [class*="dash-slider"][class*="track"] {
-    background-color: #375a7f !important;
+    background-color: #34475a !important;
+}
+.dash-slider-range {
+    background-color: rgb(180, 210, 255) !important;
+}
+.dash-slider-mark {
+    color: #ecf0f1;
+}
+.dash-slider-mark.dash-slider-mark-outside-selection {
+    color: #6c757d;
+}
+.dash-input-container {
+    color: #050d18;
+    background: #dbdfe3;
 }
 /* Legacy rc-slider and generic patterns (older Dash / fallback) */
 .row-slider-wrapper [class*="track"] {
-    background-color: #375a7f !important;
+    background-color: #34475a !important;
 }
 .row-slider-wrapper [class*="handle"] {
     background-color: #375a7f !important;
@@ -335,13 +351,27 @@ body {
 .card {
     border: 1px solid #34495e;
     border-radius: 8px;
+    background-color: #141e2e;
 }
 .card-header {
-    background-color: rgba(52, 73, 94, 0.9);
+    background-color: #1a2a3a !important;
     border-bottom: 1px solid #34495e;
     color: #ecf0f1;
     padding: 0.6rem 1rem;
 }
+.generation-input-card .card-header {
+    background-color: #050d18 !important;
+    border: 1px solid #7aabd4;
+    color: #e8f2fb;
+    border-radius: 7px;
+}
+.generation-input-card .card-header button {
+    color: #e8f2fb !important;
+}
+.generation-input-card .card-body {
+    background-color: #09131f;
+}
+
 .card-body {
     color: #ecf0f1;
     padding: 1rem;
@@ -363,4 +393,41 @@ body {
 
 .card-container-animated.card-visible {
     max-height: 2000px; /* Large enough for any card content */
+}
+
+/* Generation pill button group */
+.generation-pill-group .btn {
+    background-color: transparent;
+    border-color: #4a6a8a;
+    color: #8aaccc;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.generation-pill-group .btn:hover {
+    background-color: #3c648a;
+    border-color: #7aabd4;
+    color: #c0d8f0;
+}
+.generation-pill-group .btn.active,
+.generation-pill-group .btn:active {
+    background-color: #1b5389;
+    border-color: #7aabd4;
+    color: #e8f2fb;
+}
+.generation-pill-group .btn.disabled,
+.generation-pill-group .btn:disabled {
+    background-color: transparent;
+    border-color: #2c3e50;
+    color: #3d5166;
+    opacity: 1;
+    cursor: not-allowed;
+}
+
+.form-check-input:checked {
+    background-color: #2b68a2 !important;
+    border-color: #2b68a2 !important;
+}
+.form-switch .form-check-input:not(:checked) {
+    background-color: #e1e1e1;
+    border-color: #7a8fa6;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%237a8fa6'/%3e%3c/svg%3e");
 }

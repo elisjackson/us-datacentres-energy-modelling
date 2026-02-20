@@ -278,7 +278,7 @@ class GenerationInput():
                     is_open=is_open,
                 ),
             ],
-            className="mb-3",
+            className="mb-3 generation-input-card",
         )
 
     def create_card_body(self):
@@ -335,7 +335,7 @@ def concept_form_layout():
             # Data centre capacity row
             dbc.Row(
                 [
-                    dbc.Col(dbc.Label("Data centre capacity"), width="auto", className="d-flex align-items-center"),
+                    dbc.Col(dbc.Label("Data centre capacity (MW)"), width="auto", className="d-flex align-items-center"),
                     dbc.Col(
                         dcc.Slider(
                             id="data-centre-capacity-slider",
@@ -370,7 +370,7 @@ def concept_form_layout():
                                     )
                                     for card in generation_cards
                                 ],
-                                className="d-flex align-items-center justify-content-center",
+                                className="d-flex align-items-center justify-content-center generation-pill-group",
                             ),
                         ],
                         width="auto",
@@ -389,7 +389,6 @@ def concept_form_layout():
                             ),
                         ],
                         width="auto",
-                        className="ps-4",
                     ),
                     # Carbon price column
                     dbc.Col(
@@ -405,10 +404,9 @@ def concept_form_layout():
                             ),
                         ],
                         width="auto",
-                        className="ps-4",
                     ),
                 ],
-                className="mb-3 align-items-start",
+                className="mb-3 align-items-start justify-content-between justify-content-lg-start gap-lg-5",
             ),
             dbc.Row(
                 [
