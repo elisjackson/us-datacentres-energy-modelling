@@ -96,18 +96,22 @@ class GenerationInput():
         for i, row in df.iterrows():
             dbc_rows.append(
                 dbc.Row([
-                    dbc.Col(html.Label(row["cost_parameter"]), width=3),
-                    dbc.Col(html.Label(row["value"]), width=3),
-                    dbc.Col(html.Label(row["unit"]), width=3),
-                    dbc.Col(html.Label(row["source"]), width=3),
-                ])
+                    dbc.Col(html.Span(row["cost_parameter"]), width=3, className="assumptions-cell"),
+                    dbc.Col(html.Span(row["value"]), width=3, className="assumptions-cell assumptions-cell-value"),
+                    dbc.Col(html.Span(row["unit"]), width=3, className="assumptions-cell assumptions-cell-unit"),
+                    dbc.Col(html.Span(row["source"]), width=3, className="assumptions-cell assumptions-cell-source"),
+                ], className="assumptions-data-row")
             )
         return html.Div([
+            html.Div("Additional Assumptions", className="assumptions-title"),
             dbc.Row([
-                dbc.Col(html.Label("Additional Assumptions"), width=12)
-            ]),
-            *dbc_rows  # Unpack the list of Rows
-        ])
+                dbc.Col(html.Span("Parameter"), width=3, className="assumptions-col-header"),
+                dbc.Col(html.Span("Value"), width=3, className="assumptions-col-header"),
+                dbc.Col(html.Span("Unit"), width=3, className="assumptions-col-header"),
+                dbc.Col(html.Span("Source"), width=3, className="assumptions-col-header"),
+            ], className="assumptions-header-row"),
+            *dbc_rows
+        ], className="additional-assumptions")
 
     def create_costs_df(self, cost_type: Literal["cost_choices", "cost_assumptions"]):
         # Flatten to one row per value
@@ -137,53 +141,20 @@ class GenerationInput():
 
     def _create_cost_level_row(self, cost_parameter: str, level: str, value=None, is_active=False, input_disabled=False):
         """Helper to create a button + input row for a cost level."""
-        # Style for inputs: different styling for selected vs unselected disabled inputs
-        base_style = {
-            "borderTopLeftRadius": "0",
-            "borderBottomLeftRadius": "0",
-            "borderTopRightRadius": "8px",
-            "borderBottomRightRadius": "8px",
-        }
-        
         if input_disabled:
-            if is_active:
-                # Selected disabled input: less faded, highlighted background
-                input_style = {
-                    **base_style,
-                    "opacity": "0.85",
-                    "cursor": "not-allowed",
-                    "backgroundColor": "#2c3e50",
-                    "fontWeight": "600",
-                }
-            else:
-                # Unselected disabled input: more faded
-                input_style = {
-                    **base_style,
-                    "opacity": "0.4",
-                    "cursor": "not-allowed",
-                    "backgroundColor": "#1a1a1a",
-                }
+            input_class = "cost-level-input input-active-disabled" if is_active else "cost-level-input input-inactive-disabled"
         else:
-            # Enabled input (Custom when active)
-            input_style = base_style
-        
-        button_style = {
-            "borderTopLeftRadius": "8px",
-            "borderBottomLeftRadius": "8px",
-            "borderTopRightRadius": "0",
-            "borderBottomRightRadius": "0",
-        }
-        
+            input_class = "cost-level-input"
+
         return dbc.Row([
             dbc.Col(
                 dbc.Button(
                     level,
                     id={"type": "cost-level-btn", "card": self.card_id, "param": cost_parameter, "level": level},
-                    className="w-100",
+                    className="cost-level-btn w-100",
                     color="primary",
                     outline=not is_active,
                     active=is_active,
-                    style=button_style,
                 ),
                 width=self.BTN_COL_WIDTH,
             ),
@@ -193,12 +164,12 @@ class GenerationInput():
                     value=value,
                     placeholder="0" if value is not None else "Custom value",
                     disabled=input_disabled,
-                    style=input_style,
+                    className=input_class,
                     id={"type": "cost-value-input", "card": self.card_id, "param": cost_parameter, "level": level},
                 ),
                 width=self.INPUT_COL_WIDTH,
             ),
-        ], className="g-0")
+        ], className="g-0 cost-level-row")
     
     def build_cost_column(self, cost_parameter: str, selected_subtype: str):
         """
@@ -242,9 +213,9 @@ class GenerationInput():
         # Label row on top, then level rows below
         return html.Div([
             dbc.Row([
-                dbc.Col(html.Label(cost_parameter, className="fw-bold"), width=self.BTN_COL_WIDTH),
-                dbc.Col(html.Label(unit), width=self.INPUT_COL_WIDTH),
-            ], className="mb-2"),
+                dbc.Col(html.Label(cost_parameter, className="cost-column-header-param text-label-blue"), width=self.BTN_COL_WIDTH),
+                dbc.Col(html.Label(unit, className="text-label-blue"), width=self.INPUT_COL_WIDTH),
+            ], className="cost-column-header"),
             *level_rows  # Unpack the list of Rows
         ])
 
@@ -298,7 +269,7 @@ class GenerationInput():
             html.Div(
                 dbc.Row([
                     dbc.Col(c) for c in self.cost_columns[self.default_subtype]
-                ], className="mb-3"),
+                ], className="mb-3 cost-columns-row align-items-center"),
                 id={"type": "cost-columns-container", "card": self.card_id}
             )
         )
@@ -335,7 +306,7 @@ def concept_form_layout():
             # Data centre capacity row
             dbc.Row(
                 [
-                    dbc.Col(dbc.Label("Data centre capacity (MW)"), width="auto", className="d-flex align-items-center"),
+                    dbc.Col(dbc.Label("Data centre capacity (MW)", className="text-label-blue"), width="auto", className="d-flex align-items-center"),
                     dbc.Col(
                         dcc.Slider(
                             id="data-centre-capacity-slider",
@@ -357,7 +328,7 @@ def concept_form_layout():
                     # Generation selection column
                     dbc.Col(
                         [
-                            dbc.Label("Select generation / energy sources", className="mb-2 text-center"),
+                            dbc.Label("Select generation / energy sources", className="mb-2 text-center text-label-blue"),
                             html.Div(
                                 [
                                     dbc.Button(
@@ -378,7 +349,7 @@ def concept_form_layout():
                     # Battery storage column
                     dbc.Col(
                         [
-                            dbc.Label("Battery storage", className="mb-2 text-center"),
+                            dbc.Label("Battery storage", className="mb-2 text-center text-label-blue"),
                             html.Div(
                                 dbc.Switch(
                                     id={"type": "storage-toggle", "index": "storage-toggle"},
@@ -393,7 +364,7 @@ def concept_form_layout():
                     # Carbon price column
                     dbc.Col(
                         [
-                            dbc.Label("Include Carbon price", className="mb-2 text-center"),
+                            dbc.Label("Include Carbon price", className="mb-2 text-center text-label-blue"),
                             html.Div(
                                 dbc.Switch(
                                     id={"type": "co2-toggle", "index": "co2-toggle"},
@@ -545,7 +516,7 @@ def register_callbacks(app):
         # Return the updated states and columns
         columns_row = dbc.Row([
             dbc.Col(c) for c in cost_columns
-        ], className="mb-3")
+        ], className="mb-3 cost-columns-row align-items-center")
         
         return active_states, outline_states, columns_row
     
@@ -581,7 +552,7 @@ def register_callbacks(app):
         Output({"type": "cost-level-btn", "card": ALL, "param": ALL, "level": ALL}, "active"),
         Output({"type": "cost-level-btn", "card": ALL, "param": ALL, "level": ALL}, "outline"),
         Output({"type": "cost-value-input", "card": ALL, "param": ALL, "level": ALL}, "disabled"),
-        Output({"type": "cost-value-input", "card": ALL, "param": ALL, "level": ALL}, "style"),
+        Output({"type": "cost-value-input", "card": ALL, "param": ALL, "level": ALL}, "className"),
         Input({"type": "cost-level-btn", "card": ALL, "param": ALL, "level": ALL}, "n_clicks"),
         State({"type": "cost-level-btn", "card": ALL, "param": ALL, "level": ALL}, "active"),
         prevent_initial_call=True,
@@ -624,60 +595,36 @@ def register_callbacks(app):
                 active_states.append(current_active_states[i])
                 outline_states.append(not current_active_states[i])
         
-        # Build disabled states and styles for all inputs
+        # Build disabled states and class names for all inputs
         input_disabled_states = []
-        input_styles = []
-        
-        base_style = {
-            "borderTopLeftRadius": "0",
-            "borderBottomLeftRadius": "0",
-            "borderTopRightRadius": "8px",
-            "borderBottomRightRadius": "8px",
-        }
-        
-        selected_disabled_style = {
-            **base_style,
-            "opacity": "0.85",
-            "cursor": "not-allowed",
-            "backgroundColor": "#2c3e50",
-            "fontWeight": "600",
-        }
-        
-        unselected_disabled_style = {
-            **base_style,
-            "opacity": "0.4",
-            "cursor": "not-allowed",
-            "backgroundColor": "#1a1a1a",
-        }
-        
+        input_classes = []
+
         for inp_id in input_ids:
             # Custom inputs are enabled only if their corresponding Custom button is active
             if inp_id["level"] == "Custom":
-                # Find the corresponding Custom button's active state
                 custom_btn_active = False
                 for i, btn_id in enumerate(button_ids):
-                    if (btn_id["card"] == inp_id["card"] and 
-                        btn_id["param"] == inp_id["param"] and 
-                        btn_id["level"] == "Custom"):
+                    if (btn_id["card"] == inp_id["card"] and
+                            btn_id["param"] == inp_id["param"] and
+                            btn_id["level"] == "Custom"):
                         custom_btn_active = active_states[i]
                         break
                 is_disabled = not custom_btn_active
                 input_disabled_states.append(is_disabled)
-                input_styles.append(unselected_disabled_style if is_disabled else base_style)
+                input_classes.append("cost-level-input input-inactive-disabled" if is_disabled else "cost-level-input")
             else:
-                # Non-custom inputs are always disabled - check if their button is active
+                # Non-custom inputs are always disabled; highlight if their button is active
                 btn_is_active = False
                 for i, btn_id in enumerate(button_ids):
-                    if (btn_id["card"] == inp_id["card"] and 
-                        btn_id["param"] == inp_id["param"] and 
-                        btn_id["level"] == inp_id["level"]):
+                    if (btn_id["card"] == inp_id["card"] and
+                            btn_id["param"] == inp_id["param"] and
+                            btn_id["level"] == inp_id["level"]):
                         btn_is_active = active_states[i]
                         break
                 input_disabled_states.append(True)
-                # Selected inputs get highlighted even though disabled
-                input_styles.append(selected_disabled_style if btn_is_active else unselected_disabled_style)
-        
-        return active_states, outline_states, input_disabled_states, input_styles
+                input_classes.append("cost-level-input input-active-disabled" if btn_is_active else "cost-level-input input-inactive-disabled")
+
+        return active_states, outline_states, input_disabled_states, input_classes
     
     
     @app.callback(

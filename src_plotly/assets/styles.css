@@ -8,6 +8,11 @@ body {
     --Dash-Fill-Interactive-Strong: rgb(5, 13, 24);
 }
 
+/* Reusable muted blue label text */
+.text-label-blue {
+    color: #8aaccc;
+}
+
 /* Reusable small grey helper text (footnotes, captions, etc.) */
 .text-muted-small {
     font-size: 0.8rem;
@@ -112,15 +117,18 @@ body {
 .accordion-item {
     border-color: #08090a !important;
 }
+.accordion-item + .accordion-item {
+    margin-top: 0.25rem;
+}
 .accordion-button {
-    background-color: #141e2e !important;
+    background-color: #0c345b !important;
     color: #ecf0f1 !important;
     border-color: #34495e !important;
     padding-left: 1.25rem;
     padding-right: 1.25rem;
 }
 .accordion-button:not(.collapsed) {
-    background-color: #141e2e !important;
+    background-color: #1b5389 !important;
     color: #ecf0f1 !important;
     box-shadow: none;
 }
@@ -319,7 +327,7 @@ body {
 }
 .dash-input-container {
     color: #050d18;
-    background: #dbdfe3;
+    background: #e7e1d4;
 }
 /* Legacy rc-slider and generic patterns (older Dash / fallback) */
 .row-slider-wrapper [class*="track"] {
@@ -361,9 +369,13 @@ body {
 }
 .generation-input-card .card-header {
     background-color: #050d18 !important;
-    border: 1px solid #7aabd4;
     color: #e8f2fb;
     border-radius: 7px;
+}
+.generation-input-card .card-header:has(button[aria-expanded="true"]) {
+    background-color: #1b5389 !important;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
 }
 .generation-input-card .card-header button {
     color: #e8f2fb !important;
@@ -395,7 +407,132 @@ body {
     max-height: 2000px; /* Large enough for any card content */
 }
 
+/* Cost columns row: last column wraps to a new line sooner than the others */
+.cost-columns-row > .col {
+    min-width: 20rem;
+}
+.cost-columns-row {
+    row-gap: 1rem;
+}
+
+/* Generation input cards: cost level rows and header – button/label holds its width, input/unit fills the rest */
+.cost-level-row,
+.cost-column-header {
+    flex-wrap: nowrap !important;
+}
+.cost-level-row > :first-child {
+    flex: 0 0 auto !important;
+    width: auto !important;
+}
+.cost-column-header > :first-child {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    max-width: 6.5rem;
+}
+.cost-level-row > :last-child,
+.cost-column-header > :last-child {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    overflow: hidden;
+}
+
+/* Generation input cards: cost parameter columns */
+.cost-column-header {
+    margin-bottom: 0.5rem;
+}
+.cost-level-btn {
+    border-top-left-radius: 10px !important;
+    border-bottom-left-radius: 10px !important;
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    color: #e8f2fb !important;
+    border-color: #4a6a8a !important;
+    white-space: nowrap !important;
+    min-width: 6.5rem !important;
+}
+.cost-level-btn.active {
+    background-color: #1b5389 !important;
+    border-color: #7aabd4 !important;
+}
+.cost-level-btn:hover {
+    background-color: #3c648a !important;
+    border-color: #7aabd4 !important;
+    color: #e8f2fb !important;
+}
+.cost-level-input {
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    border-top-right-radius: 8px !important;
+    border-bottom-right-radius: 8px !important;
+    background-color: #e7e1d4 !important;
+    min-width: 3rem !important;
+}
+.cost-level-input.input-active-disabled {
+    cursor: not-allowed !important;
+}
+.cost-level-input.input-inactive-disabled {
+    opacity: 0.7 !important;
+    cursor: not-allowed !important;
+}
+
+/* Additional assumptions table */
+.additional-assumptions {
+    border: 1px solid #2a3f55;
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 0.9rem;
+}
+.assumptions-title {
+    padding: 0.35rem 0.6rem;
+    color: #7aabd4;
+    background-color: #0b1929;
+    border-bottom: 1px solid #2a3f55;
+}
+.assumptions-header-row {
+    background-color: #0f2035;
+    border-bottom: 1px solid #2a3f55;
+    margin: 0 !important;
+}
+.assumptions-col-header {
+    padding: 0.25rem 0.5rem !important;
+    color: #8aaccc;
+}
+.assumptions-data-row {
+    margin: 0 !important;
+    border-bottom: 1px solid #1a2e42;
+}
+.assumptions-data-row:last-child {
+    border-bottom: none;
+}
+.assumptions-data-row:nth-child(odd) {
+    background-color: #0d1e30;
+}
+.assumptions-data-row:nth-child(even) {
+    background-color: #091624;
+}
+.assumptions-cell {
+    padding: 0.3rem 0.5rem !important;
+    color: #c8d8e8;
+    word-break: break-word;
+}
+.assumptions-cell-value {
+    font-variant-numeric: tabular-nums;
+    color: #e8f2fb;
+}
+.assumptions-cell-unit {
+    color: #8aaccc;
+    font-style: italic;
+}
+.assumptions-cell-source {
+    color: #6a8aaa;
+    font-size: 0.8rem;
+}
+
 /* Generation pill button group */
+.generation-pill-group {
+    flex-wrap: wrap !important;
+    row-gap: 0.4rem;
+}
 .generation-pill-group .btn {
     background-color: transparent;
     border-color: #4a6a8a;
@@ -427,7 +564,22 @@ body {
     border-color: #2b68a2 !important;
 }
 .form-switch .form-check-input:not(:checked) {
-    background-color: #e1e1e1;
+    background-color: #e7e1d4;
     border-color: #7a8fa6;
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%237a8fa6'/%3e%3c/svg%3e");
+}
+
+/* Optimise button */
+#optimise-button {
+    background-color: #76a576 !important;
+    border-color: #76a576 !important;
+    color: #ffffff !important;
+}
+#optimise-button:hover {
+    background-color: #8aba8a !important;
+    border-color: #8aba8a !important;
+}
+#optimise-button:disabled {
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
 }
