@@ -28,7 +28,7 @@ server = app.server
 
 radioitems = html.Div(
     [
-        dbc.Label("Select map layer"),
+        dbc.Label("Select map layer", className="text-label-blue"),
         dbc.RadioItems(
             options=[
                 {"label": "Data Centre & PV location", "value": "PV"},
@@ -55,7 +55,7 @@ accordion = dbc.Accordion(
                                         dbc.Col(radioitems),
                                         dbc.Col(
                                             [
-                                                html.Label("Select country", className="form-label"),
+                                                html.Label("Select country", className="form-label text-label-blue"),
                                                 dcc.Dropdown(
                                                     ['United Kingdom', 'United States'],
                                                     'United Kingdom',
@@ -65,7 +65,7 @@ accordion = dbc.Accordion(
                                         ),
                                     ],
                                 ),
-                                html.Div("Some text", className="mb-3", id="map-helper-text"),
+                                html.Div("Some text", className="mb-3 text-label-blue", id="map-helper-text"),
                                 dcc.Store(id="figure-store"),
                                 dcc.Store(id="map-wind-max"),
                                 dcc.Store(id="last-country-store"),
@@ -77,11 +77,21 @@ accordion = dbc.Accordion(
                                 dcc.Store(id="wind-latlon-store"),
                                 dcc.Graph(
                                     id="map",
-                                    style={"height": "600px"},
+                                    className="map-graph",
                                     config={"displayModeBar": False},
+                                    figure={
+                                        "data": [],
+                                        "layout": {
+                                            "paper_bgcolor": "rgb(10, 20, 36)",
+                                            "plot_bgcolor": "rgb(10, 20, 36)",
+                                            "margin": {"l": 0, "r": 0, "t": 0, "b": 0},
+                                            "xaxis": {"visible": False},
+                                            "yaxis": {"visible": False},
+                                        }
+                                    },
                                 )
                             ],
-                            width=8,
+                            lg=8,
                             style={
                                 "backgroundColor": "rgb(5, 13, 24)",
                                 "borderRadius": "8px",
@@ -100,6 +110,7 @@ accordion = dbc.Accordion(
                                         html.Div(id="solar-data-table"),
                                         solar_data_table_footer,
                                     ],
+                                    className="solar-data-section",
                                 ),
                                 html.Div(
                                     [
@@ -116,9 +127,8 @@ accordion = dbc.Accordion(
                                     ],
                                 ),
                             ],
-                            width=4,
-                            className="d-flex flex-column justify-content-evenly gap-3",
-                            style={"paddingLeft": "1rem", "paddingRight": "0rem"},
+                            lg=4,
+                            className="d-flex flex-column justify-content-evenly gap-3 ps-lg-3 ps-0 pe-0 mt-4 mt-lg-0",
                         ),
                     ],
                     className="mx-0",

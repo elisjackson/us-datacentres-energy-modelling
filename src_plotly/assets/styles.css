@@ -150,11 +150,78 @@ body {
     --bs-accordion-body-padding-x: 0;
 }
 
-/* Solar PV data table background */
-#solar-data-table table,
-#solar-data-table th,
+/* Solar data section: heading / table / footer spacing */
+.solar-data-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem !important;
+}
+
+/* Solar PV data table */
+#solar-data-table {
+    border: 1px solid #2a3f55;
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 1rem;
+    color: #c8d8e8;
+}
+#solar-data-table table {
+    margin-bottom: 0 !important;
+}
+#solar-data-table thead tr {
+    background-color: #0f2035 !important;
+    border-bottom: 1px solid #2a3f55;
+}
+#solar-data-table th {
+    background-color: #0f2035 !important;
+    color: inherit !important;
+    padding: 0.35rem 0.6rem !important;
+    border: none !important;
+    font-weight: normal !important;
+}
+#solar-data-table tbody tr:nth-child(odd) {
+    background-color: #0d1e30 !important;
+}
+#solar-data-table tbody tr:nth-child(even) {
+    background-color: #091624 !important;
+}
+#solar-data-table tbody tr:last-child td {
+    border-bottom: none !important;
+}
 #solar-data-table td {
-    background-color: #070f1d !important;
+    background-color: transparent !important;
+    color: #c8d8e8;
+    padding: 0.3rem 0.5rem !important;
+    border-color: #1a2e42 !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    word-break: break-word;
+}
+
+/* Map graph: responsive height */
+.map-graph {
+    height: 600px;
+}
+@media (max-width: 991px) {
+    .map-graph { height: 450px; }
+}
+@media (max-width: 767px) {
+    .map-graph {
+        height: auto;
+        aspect-ratio: 4 / 3;
+    }
+}
+
+/* Map graph: dark background before figure is loaded (hydration gap fallback) */
+#map {
+    background-color: rgb(10, 20, 36) !important;
+    border-radius: 4px;
+}
+#map .js-plotly-plot,
+#map .plot-container,
+#map .svg-container {
+    background-color: rgb(10, 20, 36) !important;
 }
 
 /* Plotly colorbar text – map backend may ignore tickfont/title font, so override with CSS */
