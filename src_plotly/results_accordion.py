@@ -197,13 +197,14 @@ def create_costs_graph(costs: dict = None):
 def create_card(header: str, value: float):
     return dbc.Card(
         [
-            dbc.CardHeader(header),
+            dbc.CardHeader(header, className="results-card-header"),
             dbc.CardBody(
                 [
-                    html.H5(round(value), className="card-title"),
+                    html.H5(round(value), className="card-title results-card-value"),
                 ]
             )
-        ]
+        ],
+        className="results-summary-card",
     )
 
 
@@ -231,7 +232,8 @@ def results_layout():
                 [
                     dbc.Col(create_card("Total Cost", 1000), id="total-cost-card"),
                     dbc.Col(create_card("Total Emissions", 10000), id="total-emissions-card"),
-                ]
+                ],
+                className="align-items-center gy-3",
             ),
             dbc.Row(
                 [
@@ -266,10 +268,11 @@ def results_layout():
                 ]
             ),
         ],
-        className="p-3",
+        className="p-3 results-layout",
         style={
-            "backgroundColor": "rgba(255,255,255,0.06)",
+            "backgroundColor": "rgb(5, 13, 24)",
             "borderRadius": "8px",
+            "border": "1px solid rgb(111, 111, 111)",
             "width": "100%",
         },
     )

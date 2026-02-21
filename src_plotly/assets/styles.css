@@ -641,6 +641,36 @@ body {
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='%237a8fa6'/%3e%3c/svg%3e");
 }
 
+/* Results summary cards */
+.results-summary-card {
+    border: 1px solid #2a3f55;
+    border-radius: 6px;
+    background-color: #0c345b38;
+    min-width: 10rem;
+}
+.results-summary-card .results-card-header {
+    background-color: #0c345bcc !important;
+    font-size: 1.1rem;
+    padding: 0.35rem 0.75rem;
+    border-bottom: 1px solid #2a3f55;
+}
+.results-summary-card .card-body {
+    padding: 0.5rem 0.75rem;
+}
+.results-summary-card .results-card-value {
+    color: #e8f2fb;
+    margin-bottom: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Results accordion layout */
+.results-layout > .row {
+    margin-bottom: 1rem;
+}
+.results-layout > .row:last-child {
+    margin-bottom: 0;
+}
+
 /* Optimise button */
 #optimise-button {
     background-color: #76a576 !important;
