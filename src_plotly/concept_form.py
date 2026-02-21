@@ -188,13 +188,13 @@ class GenerationInput():
 
         # Build a row for each cost level (first one is active by default)
         level_rows = []
-        for i, row in df.iterrows():
+        for idx, (i, row) in enumerate(df.iterrows()):
             level_rows.append(
                 self._create_cost_level_row(
                     cost_parameter=cost_parameter,
                     level=row["level"],
                     value=row["value"],
-                    is_active=(i == 0),  # First row is active
+                    is_active=(idx == 0),  # First row is active
                     input_disabled=True  # Pre-defined values are read-only
                 )
             )

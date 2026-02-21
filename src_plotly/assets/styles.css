@@ -127,6 +127,10 @@ body {
     padding-left: 1.25rem;
     padding-right: 1.25rem;
 }
+.accordion-button:hover,
+.accordion-button:not(.collapsed):hover {
+    background-color: #3c648a !important;
+}
 .accordion-button:not(.collapsed) {
     background-color: #1b5389 !important;
     color: #ecf0f1 !important;
@@ -371,11 +375,16 @@ body {
     background-color: #050d18 !important;
     color: #e8f2fb;
     border-radius: 7px;
+    transition: background-color 0.2s ease;
 }
 .generation-input-card .card-header:has(button[aria-expanded="true"]) {
     background-color: #1b5389 !important;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
+}
+.generation-input-card .card-header:hover,
+.generation-input-card .card-header:has(button[aria-expanded="true"]):hover {
+    background-color: #3c648a !important;
 }
 .generation-input-card .card-header button {
     color: #e8f2fb !important;
@@ -481,10 +490,10 @@ body {
     border-radius: 6px;
     overflow: hidden;
     font-size: 0.9rem;
+    color: #7aabd4;
 }
 .assumptions-title {
     padding: 0.35rem 0.6rem;
-    color: #7aabd4;
     background-color: #0b1929;
     border-bottom: 1px solid #2a3f55;
 }
@@ -495,7 +504,6 @@ body {
 }
 .assumptions-col-header {
     padding: 0.25rem 0.5rem !important;
-    color: #8aaccc;
 }
 .assumptions-data-row {
     margin: 0 !important;
@@ -517,14 +525,11 @@ body {
 }
 .assumptions-cell-value {
     font-variant-numeric: tabular-nums;
-    color: #e8f2fb;
 }
 .assumptions-cell-unit {
-    color: #8aaccc;
     font-style: italic;
 }
 .assumptions-cell-source {
-    color: #6a8aaa;
     font-size: 0.8rem;
 }
 
