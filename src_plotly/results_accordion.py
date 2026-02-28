@@ -147,8 +147,10 @@ def create_costs_graph(costs: dict = None):
         return fig
 
     capex = costs.get("capex") or {}
-    marginal = costs.get("marginal") or {}
-    carriers = sorted(set(capex) | set(marginal))
+    opex = costs.get("opex") or {}
+    energy_cost = costs.get("energy_cost") or {}
+    co2_cost = costs.get("co2_cost") or {}
+    carriers = sorted(set(capex) | set(energy_cost))
 
     if not carriers:
         fig.update_layout(
@@ -171,9 +173,25 @@ def create_costs_graph(costs: dict = None):
     fig.add_trace(
         go.Bar(
             x=carriers,
-            y=[marginal.get(c, 0) for c in carriers],
-            name="Marginal",
+            y=[co2_cost.get(c, 0) for c in carriers],
+            name="CO2 cost",
             marker=dict(color="#e0a86a"),
+        )
+    )
+    fig.add_trace(
+        go.Bar(
+            x=carriers,
+            y=[opex.get(c, 0) for c in carriers],
+            name="OPEX",
+            marker=dict(color="#1f77b4"),
+        )
+    )
+    fig.add_trace(
+        go.Bar(
+            x=carriers,
+            y=[energy_cost.get(c, 0) for c in carriers],
+            name="Energy cost",
+            marker=dict(color="#ff7f0e"),
         )
     )
     fig.update_layout(
@@ -230,6 +248,8 @@ def results_layout():
             ),
             dbc.Row(
                 [
+                    dbc.Col(create_card("Data Centre Capacity", 1000), id="data-centre-capacity-card"),
+                    dbc.Col(create_card("Total Generation Capacity", 1000), id="total-generation-capacity-card"),
                     dbc.Col(create_card("Total Cost", 1000), id="total-cost-card"),
                     dbc.Col(create_card("Total Emissions", 10000), id="total-emissions-card"),
                 ],
@@ -308,10 +328,12 @@ def register_callbacks(app):
         generator_stats = data.get("generator_stats", {})
         storage_stats = data.get("storage_stats", {})
 
-        capex = {**generator_stats.get("capital_cost", {}), **storage_stats.get("capital_cost", {})}
-        marginal = {**generator_stats.get("marginal_cost", {}), **storage_stats.get("marginal_cost", {})}
+        capex = {**generator_stats.get("total_capex", {}), **storage_stats.get("total_capex", {})}
+        opex = {**generator_stats.get("total_opex", {}), **storage_stats.get("total_opex", {})}
+        energy_cost = {**generator_stats.get("total_energy_cost", {}), **storage_stats.get("total_energy_cost", {})}
+        co2_cost = {**generator_stats.get("total_co2_cost", {}), **storage_stats.get("total_co2_cost", {})}
 
-        all_costs = {"capex": capex, "marginal": marginal}
+        all_costs = {"capex": capex, "opex": opex, "energy_cost": energy_cost, "co2_cost": co2_cost}
 
         return create_costs_graph(costs=all_costs)
 
@@ -332,6 +354,8 @@ def register_callbacks(app):
 
     @app.callback(
         [
+            Output("data-centre-capacity-card", "children"),
+            Output("total-generation-capacity-card", "children"),
             Output("total-cost-card", "children"),
             Output("total-emissions-card", "children"),
         ],
@@ -339,8 +363,15 @@ def register_callbacks(app):
     )
     def _update_summary_cards(data):
         if data is None:
-            return create_card("Total Cost", 0), create_card("Total Emissions", 0)
+            return (
+                create_card("Data Centre Capacity", 0),
+                create_card("Total Generation Capacity", 0),
+                create_card("Total Cost", 0),
+                create_card("Total Emissions", 0),
+            )
         return (
+            create_card("Data Centre Capacity", data.get("load", 0)),
+            create_card("Total Generation Capacity", data.get("total_generation_capacity", 0)),
             create_card("Total Cost", data.get("total_cost", 0)),
             create_card("Total Emissions", data.get("total_emissions", 0)),
         )

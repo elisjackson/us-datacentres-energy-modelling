@@ -931,7 +931,7 @@ def register_callbacks(app):
             message = (
                 "Gosh, I'm infeasible :'(\n"
                 "Probably because I can't meet the load all year.\n"
-                "Give me some baseload or backup generation... (add Grid, Gas or SMR)."
+                "I'd appreciate some baseload or backup generation... (add Grid, Gas or SMR)."
             )
             return parameters, True, no_update, no_update, html.Div(
                 message, style={"whiteSpace": "pre-line"}
