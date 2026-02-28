@@ -82,7 +82,7 @@ class GenerationInput():
                     )
                     for i, subtype in enumerate(self.subtypes)
                 ],
-                className="d-flex align-items-center",
+                className="d-flex align-items-center generation-pill-group",
             )
         else:
             self.subtype_buttons = None
@@ -268,7 +268,7 @@ class GenerationInput():
         if self.subtype_buttons is not None:
             children.append(
                 dbc.Row([
-                    dbc.Col(html.Label("Select base cost assumptions:"), width="auto"),
+                    dbc.Col(html.Label("Select base cost assumptions:", className="text-label-blue"), width="auto"),
                     dbc.Col(self.subtype_buttons, width="auto")
                 ], className="align-items-center mb-3")
                 )

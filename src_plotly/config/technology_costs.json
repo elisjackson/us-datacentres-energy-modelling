@@ -1,0 +1,399 @@
+{
+    "Wind": {
+        "Onshore": {
+            "cost_choices": [
+                {
+                    "name": "CAPEX",
+                    "unit": "2023 USD/kW",
+                    "values": [
+                        {
+                            "name": "Low",
+                            "value": 1199,
+                            "source": "DESNZ, 2023"
+                        },
+                        {
+                            "name": "Mid",
+                            "value": 1569,
+                            "source": "DESNZ, 2023"
+                        },
+                        {
+                            "name": "High",
+                            "value": 1799,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
+                }
+            ],
+            "cost_assumptions": [
+                {
+                    "name": "Fixed OPEX",
+                    "unit": "2023 USD/kW/yr",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 32.40,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
+                },
+                {
+                    "name": "Variable OPEX",
+                    "unit": "2023 USD/MWh",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 7.65,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
+                }
+            ]
+        },
+        "Offshore": {
+            "cost_choices": [
+                {
+                    "name": "CAPEX",
+                    "unit": "2023 USD/kW",
+                    "values": [
+                        {
+                            "name": "Low",
+                            "value": 1735,
+                            "source": "DESNZ, 2023"
+                        },
+                        {
+                            "name": "Mid",
+                            "value": 2079,
+                            "source": "DESNZ, 2023"
+                        },
+                        {
+                            "name": "High",
+                            "value": 2806,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
+                }
+            ],
+            "cost_assumptions": [
+                {
+                    "name": "Fixed OPEX",
+                    "unit": "2023 USD/kW/yr",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 55.23,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
+                },
+                {
+                    "name": "Variable OPEX",
+                    "unit": "2023 USD/MWh",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 1.28,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "Solar": {
+        "Ground-mounted": {
+            "cost_choices": [
+                {
+                    "name": "CAPEX",
+                    "unit": "2023 USD/kW",
+                    "values": [
+                        {
+                            "name": "Low",
+                            "value": 395,
+                            "source": "DESNZ 2024 (20MW system)"
+                        },
+                        {
+                            "name": "Mid",
+                            "value": 574,
+                            "source": "DESNZ 2024 (20MW system)"
+                        },
+                        {
+                            "name": "High",
+                            "value": 650,
+                            "source": "DESNZ 2024 (20MW system)"
+                        }
+                    ]
+                }
+            ],
+            "cost_assumptions": [
+                {
+                    "name": "Fixed OPEX",
+                    "unit": "2023 USD/kW/yr",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 7.65,
+                            "source": "DESNZ, 2024"
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "Gas": {
+        "Gas CCGT": {
+            "cost_choices": [
+                {
+                    "name": "CAPEX",
+                    "unit": "2023 USD/MW",
+                    "values": [
+                        {
+                            "name": "Low",
+                            "value": 651,
+                            "source": "DESNZ, 2023"
+                        },
+                        {
+                            "name": "Mid",
+                            "value": 778,
+                            "source": "DESNZ, 2023"
+                        },
+                        {
+                            "name": "High",
+                            "value": 918,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
+                },
+                {
+                    "name": "Fuel cost",
+                    "unit": "USD/MWh",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 10,
+                            "source": "DESNZ"
+                        },
+                        {
+                            "name": "High",
+                            "value": 15,
+                            "source": "DESNZ"
+                        }
+                    ]
+                }
+            ],
+            "cost_assumptions": [
+                {
+                    "name": "Fixed OPEX",
+                    "unit": "2023 USD/kW/yr",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 17.86,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
+                },
+                {
+                    "name": "Variable OPEX",
+                    "unit": "2023 USD/MWh",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 2.55,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
+                },
+                {
+                    "name": "Efficiency",
+                    "unit": "%",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 53,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "SMR": {
+        "Small Modular Reactor": {
+            "cost_choices": [
+                {
+                    "name": "CAPEX",
+                    "unit": "USD/kW",
+                    "values": [
+                        {
+                            "name": "Low",
+                            "value": 4000,
+                            "source": "IEA"
+                        },
+                        {
+                            "name": "Mid",
+                            "value": 5500,
+                            "source": "IEA"
+                        },
+                        {
+                            "name": "High",
+                            "value": 7000,
+                            "source": "IEA"
+                        }
+                    ]
+                },
+                {
+                    "name": "Fuel cost",
+                    "unit": "USD/MWh",
+                    "values": [
+                        {
+                            "name": "Low",
+                            "value": 5,
+                            "source": "IEA"
+                        },
+                        {
+                            "name": "Mid",
+                            "value": 10,
+                            "source": "IEA"
+                        },
+                        {
+                            "name": "High",
+                            "value": 15,
+                            "source": "IEA"
+                        }
+                    ]
+                }
+            ],
+            "cost_assumptions": [
+                {
+                    "name": "Fixed OPEX",
+                    "unit": "USD/kW/yr",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 120,
+                            "source": "IEA"
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "Grid Electricity": {
+        "Grid": {
+            "cost_choices": [
+                {
+                    "name": "Electricity Price",
+                    "unit": "USD/MWh",
+                    "values": [
+                        {
+                            "name": "Low",
+                            "value": 50,
+                            "source": "Market data"
+                        },
+                        {
+                            "name": "Mid",
+                            "value": 100,
+                            "source": "Market data"
+                        },
+                        {
+                            "name": "High",
+                            "value": 150,
+                            "source": "Market data"
+                        }
+                    ]
+                }
+            ],
+            "cost_assumptions": [
+                {
+                    "name": "Fixed OPEX",
+                    "unit": "USD/kW/yr",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 50,
+                            "source": "Utility estimates"
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "Battery Storage": {
+        "Battery": {
+            "cost_choices": [
+                {
+                    "name": "CAPEX",
+                    "unit": "2023 USD/kW",
+                    "values": [
+                        {
+                            "name": "Low",
+                            "value": 1249,
+                            "source": "NREL, 2023, 4-hour battery"
+                        },
+                        {
+                            "name": "Mid",
+                            "value": 1560,
+                            "source": "NREL, 2023, 4-hour battery"
+                        },
+                        {
+                            "name": "High",
+                            "value": 1996,
+                            "source": "NREL, 2023, 4-hour battery"
+                        }
+                    ]
+                }
+            ],
+            "cost_assumptions": [
+                {
+                    "name": "Fixed OPEX",
+                    "unit": "2023 USD/kW/yr",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 43.45,
+                            "source": "NREL, 2023"
+                        }
+                    ]
+                },
+                {
+                    "name": "Energy/Power ratio",
+                    "unit": "",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 4,
+                            "source": ""
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "CO2": {
+        "Carbon Price": {
+            "cost_choices": [
+                {
+                    "name": "Carbon Price",
+                    "unit": "USD/tCO2",
+                    "values": [
+                        {
+                            "name": "Low",
+                            "value": 50,
+                            "source": "IEA"
+                        },
+                        {
+                            "name": "Mid",
+                            "value": 100,
+                            "source": "IEA"
+                        },
+                        {
+                            "name": "High",
+                            "value": 200,
+                            "source": "IEA"
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}

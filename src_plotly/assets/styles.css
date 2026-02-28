@@ -574,6 +574,7 @@ body {
 .assumptions-data-row {
     margin: 0 !important;
     border-bottom: 1px solid #1a2e42;
+    align-items: center;
 }
 .assumptions-data-row:last-child {
     border-bottom: none;
