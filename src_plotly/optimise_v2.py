@@ -6,8 +6,12 @@ from pathlib import Path
 import logging
 import time
 
-import calculate_pv_profile
-import calculate_wind_profile
+try:
+    import src_plotly.calculate_pv_profile as calculate_pv_profile
+    import src_plotly.calculate_wind_profile as calculate_wind_profile
+except ImportError:
+    import calculate_pv_profile
+    import calculate_wind_profile
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +105,7 @@ class Storage():
         self.max_hours = data.get("max_hours", 2)
 
 
-def build_optimiser_results(network, generation_instances, storage_instances, co2_price):
+def build_optimiser_results(load, network, generation_instances, storage_instances, co2_price):
     """
     Build the optimiser-results-data dict from a solved PyPSA network.
     Structure matches what results_accordion expects (generation_ts, storage_ts,
@@ -131,9 +135,14 @@ def build_optimiser_results(network, generation_instances, storage_instances, co
     # e.g. carrier and efficiency are already given in the PyPSA network.storage_units dataframe
     storage_inputs_df.drop(
         columns=["name", "round_trip_efficiency", "standing_loss", "max_hours"],
-        inplace=True
+        inplace=True,
+        errors="ignore"
         )
-    storage_inputs_df.rename(columns={"capex": "capex_pu", "opex_f": "opex_f_pu"}, inplace=True)
+    storage_inputs_df.rename(
+        columns={"capex": "capex_pu", "opex_f": "opex_f_pu"},
+        inplace=True,
+        errors="ignore"
+        )
 
     # generation_ts: dict[str, list[float]]
     generation_ts_df = network.generators_t.p
@@ -147,11 +156,10 @@ def build_optimiser_results(network, generation_instances, storage_instances, co
     if len(network.storage_units) > 0:
         storage_ts_df = network.storage_units_t.p
         storage_ts = {st: storage_ts_df[st].tolist() for st in storage_ts_df.columns}
+        # annual storage flow - use as sanity check
+        annual_storage_flow = storage_ts_df.sum().to_dict()
     else:
         storage_ts = {}
-
-    # annual storage flow - use as sanity check
-    annual_storage_flow = storage_ts_df.sum().to_dict()
 
     # generator_stats: p_nom_opt, capital_cost, marginal_cost (each dict[str, float])
     gen_stats_df = network.generators
@@ -166,12 +174,14 @@ def build_optimiser_results(network, generation_instances, storage_instances, co
     gen_stats_df["total_capex"] = gen_stats_df["capex_pu"] * gen_stats_df["p_nom_opt"]
     gen_stats_df["total_opex_f"] = gen_stats_df["opex_f_pu"] * gen_stats_df["p_nom_opt"]
     # TODO - capex needs un-annualising - maybe
+    # TODO - opex needs multplying by lifetime
     gen_stats_df["total_energy_cost"] = (
         gen_stats_df["energy_cost"] * gen_stats_df["annual_generation"] / gen_stats_df["efficiency"]
         )
     gen_stats_df["total_opex_v"] = gen_stats_df["opex_v"] * gen_stats_df["p_nom_opt"]
     gen_stats_df["total_opex"] = gen_stats_df["total_opex_f"] + gen_stats_df["total_opex_v"]
     # Calculate CO2 emissions and cost
+    # TODO - needs multiplying by lifetime
     gen_stats_df = pd.merge(
         gen_stats_df,
         network.carriers["co2_emissions"],
@@ -207,6 +217,7 @@ def build_optimiser_results(network, generation_instances, storage_instances, co
             storage_stats_df, storage_inputs_df, left_index=True, right_index=True
             )
         # TODO - unannualise CAPEX?
+        # TODO - opex needs multplying by lifetime
         storage_stats_df["total_capex"] = storage_stats_df["capex_pu"] * storage_stats_df["p_nom_opt"]
         storage_stats_df["total_opex_f"] = storage_stats_df["opex_f_pu"] * storage_stats_df["p_nom_opt"]
         storage_stats_df["total_opex"] = storage_stats_df["total_opex_f"]
@@ -222,10 +233,13 @@ def build_optimiser_results(network, generation_instances, storage_instances, co
         storage_stats_dict = {k: {} for k in stats_cols}
 
     return {
+        "status": "ok",
+        "load": load,
         "total_cost": total_cost,
         "total_emissions": gen_stats_df["total_co2_emission"].sum(),
         "generator_stats": gen_stats_dict,
-        "storage_stats": storage_stats_dict,   
+        "storage_stats": storage_stats_dict,
+        "total_generation_capacity": gen_stats_df["p_nom_opt"].sum(),
         "annual_generation": annual_generation["annual_generation"],
         "generation_ts": generation_ts,
         "storage_ts": storage_ts,
@@ -258,7 +272,10 @@ def main(data: dict):
         storage=storage_instances,
         co2_price=co2_price
         )
+    if network.model.termination_condition == "infeasible":
+        return {"status": "infeasible"}
     results = build_optimiser_results(
+        load,
         network,
         generation_instances,
         storage_instances,
@@ -348,23 +365,23 @@ def pypsa_model(
     t1 = time.time()
     logger.info(f"Optimization completed in {t1 - t0:.2f} seconds")
 
-    # Results
-    print("=== OPTIMAL CAPACITIES ===")
-    for gen in generators:
-        print(f"{gen.name} capacity: {network.generators.p_nom_opt[gen.name]:.2f} MW")
+    # # Results
+    # print("=== OPTIMAL CAPACITIES ===")
+    # for gen in generators:
+    #     print(f"{gen.name} capacity: {network.generators.p_nom_opt[gen.name]:.2f} MW")
 
-    for store in storage:
-        print(f"{store.name} capacity: {network.storage_units.p_nom_opt[store.name]:.2f} MW")
+    # for store in storage:
+    #     print(f"{store.name} capacity: {network.storage_units.p_nom_opt[store.name]:.2f} MW")
 
-    print("\n=== COSTS ===")
-    print(f"Total system cost: €{network.objective:,.2f}/year")
+    # print("\n=== COSTS ===")
+    # print(f"Total system cost: €{network.objective:,.2f}/year")
 
     return network
 
 
 if __name__ == "__main__":
     _script_dir = Path(__file__).parent
-    test_json = _script_dir / "collected_parameters.json"
+    test_json = _script_dir / "collected_parameters_infeas.json"
     # read test json
     with open(test_json, "r") as f:
         test_data = json.load(f)

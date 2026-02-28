@@ -1,10 +1,13 @@
 import dash_bootstrap_components as dbc
 import json
+import logging
 import pandas as pd
 from dash import Input, Output, State, html, dcc, ctx, no_update
 from dash.dependencies import ALL, MATCH
-from typing import List, Literal
 from pathlib import Path
+from typing import List, Literal
+
+import src_plotly.optimise_v2 as optimise_v2
 
 DIR = Path(__file__).parent
 CONFIG_DIR = DIR / "config"
@@ -432,16 +435,19 @@ def concept_form_layout():
             # Stores for optimisation workflow
             dcc.Store(id="optimiser-parameters-store"),
             dcc.Store(id="optimiser-trigger-run"),
-            # Loading modal
+            # Loading modal (body message is updated when infeasible)
             dbc.Modal(
                 [
                     dbc.ModalHeader(dbc.ModalTitle("Optimising")),
                     dbc.ModalBody(
-                        [
-                            dbc.Spinner(color="primary", size="sm", spinner_class_name="me-2"),
-                            "Running optimisation…",
-                        ],
-                        className="d-flex align-items-center",
+                        html.Div(
+                            id="optimiser-loading-modal-message",
+                            children=[
+                                dbc.Spinner(color="primary", size="sm", spinner_class_name="me-2"),
+                                " Running optimisation…",
+                            ],
+                            className="d-flex align-items-center",
+                        ),
                     ),
                 ],
                 id="optimiser-loading-modal",
@@ -664,16 +670,23 @@ def register_callbacks(app):
         return is_disabled
     
     
+    # Default content for loading modal (reset when modal opens)
+    _loading_modal_default = [
+        dbc.Spinner(color="primary", size="sm", spinner_class_name="me-2"),
+        " Running optimisation…",
+    ]
+
     # Optimise button: open loading modal and trigger run
     @app.callback(
         Output("optimiser-loading-modal", "is_open"),
         Output("optimiser-trigger-run", "data"),
+        Output("optimiser-loading-modal-message", "children"),
         Input("optimise-button", "n_clicks"),
         prevent_initial_call=True,
     )
     def open_loading_modal(n_clicks):
         """Open loading modal when Optimise button is clicked."""
-        return True, n_clicks
+        return True, n_clicks, _loading_modal_default
     
     
     @app.callback(
@@ -681,6 +694,7 @@ def register_callbacks(app):
         Output("optimiser-loading-modal", "is_open", allow_duplicate=True),
         Output("main-accordion", "active_item"),
         Output("optimiser-results-data", "data"),
+        Output("optimiser-loading-modal-message", "children", allow_duplicate=True),
         Input("optimiser-trigger-run", "data"),
         State("data-centre-capacity-slider", "value"),
         State({"type": "generation-pill", "index": ALL}, "active"),
@@ -899,20 +913,32 @@ def register_callbacks(app):
         print("Collected parameters:")
         print(json.dumps(parameters, indent=2))
 
-        # save collected parameters to file
+        # save collected parameters to file (for debugging)
         with open("collected_parameters.json", "w") as f:
             json.dump(parameters, f, indent=2)
-        
-        # TODO: Call execute_optimisation with parameters
-        # For now, just store parameters and show them as "results"
-        result = {
-            'status': 'success',
-            'parameters': parameters,
-            'message': 'Form parameters collected successfully (optimiser not yet connected)'
-        }
-        
+
+        try:
+            optimiser_results = optimise_v2.main(parameters)
+        except Exception as e:
+            logging.exception("Optimisation failed")
+            optimiser_results = {
+                'status': 'error',
+                'message': str(e),
+            }
+
+        if optimiser_results.get("status") == "infeasible":
+            # Keep modal open with message; do not open results accordion or write results
+            message = (
+                "Gosh, I'm infeasible :'(\n"
+                "Probably because I can't meet the load all year.\n"
+                "Give me some baseload or backup generation... (add Grid, Gas or SMR)."
+            )
+            return parameters, True, no_update, no_update, html.Div(
+                message, style={"whiteSpace": "pre-line"}
+            )
+
         # Return: parameters store, close modal, open Results accordion, results data
-        return parameters, False, "accordion-results", result
+        return parameters, False, "accordion-results", optimiser_results, no_update
 
 
 # For standalone testing
