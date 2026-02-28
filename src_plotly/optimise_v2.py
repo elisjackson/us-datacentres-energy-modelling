@@ -88,16 +88,20 @@ class Storage():
 
         costs = data["costs"]
         self.capex = costs.get("CAPEX", {}).get("value", 0)
-        self.opex_f = costs.get("Fixed OPEX", {}).get("value", 0)
-        self.opex_v = costs.get("Variable OPEX", {}).get("value", 0)
+        # TODO - tidy this, reflect the assumption in the FE
+        self.opex_f = self.capex * 0.02  # 2% of CAPEX;
+        # assumption from https://ember-energy.org/latest-insights/how-cheap-is-battery-storage/
+        self.opex_v = 0
+        # self.opex_f = costs.get("Fixed OPEX", {}).get("value", 0)
+        # self.opex_v = costs.get("Variable OPEX", {}).get("value", 0)
 
         # TODO - add these to the input JSON
-        self.round_trip_efficiency = data.get("round_trip_efficiency", 0.95)
+        self.round_trip_efficiency = data.get("round_trip_efficiency", 0.90)
         self.standing_loss = data.get("standing_loss", 0.001)  # TODO - check assumption
         self.max_hours = data.get("max_hours", 2)
 
 
-def build_optimiser_results(network):
+def build_optimiser_results(network, generation_instances, storage_instances, co2_price):
     """
     Build the optimiser-results-data dict from a solved PyPSA network.
     Structure matches what results_accordion expects (generation_ts, storage_ts,
@@ -106,12 +110,38 @@ def build_optimiser_results(network):
     # total_cost: JSON-serialisable float
     total_cost = float(network.objective)
 
+    # build dataframe of the PyPSA generator inputs
+    gen_inputs_df = pd.DataFrame()
+    for gen in generation_instances:
+        attributes = gen.__dict__
+        if "pu_profile" in attributes:
+            attributes.pop("pu_profile")  # keep only scalar attributes
+        gen_inputs_df = pd.concat([gen_inputs_df, pd.DataFrame(attributes, index=[gen.name])])
+    # drop anything we don't need
+    # e.g. carrier and efficiency are already given in the PyPSA network.generators dataframe
+    gen_inputs_df.drop(columns=["name", "location", "carrier", "efficiency"], inplace=True)
+    gen_inputs_df.rename(columns={"capex": "capex_pu", "opex_f": "opex_f_pu"}, inplace=True)
+
+    # build dataframe of the PyPSA storage inputs
+    storage_inputs_df = pd.DataFrame()
+    for store in storage_instances:
+        attributes = store.__dict__
+        storage_inputs_df = pd.concat([storage_inputs_df, pd.DataFrame(attributes, index=[store.name])])
+    # drop anything we don't need
+    # e.g. carrier and efficiency are already given in the PyPSA network.storage_units dataframe
+    storage_inputs_df.drop(
+        columns=["name", "round_trip_efficiency", "standing_loss", "max_hours"],
+        inplace=True
+        )
+    storage_inputs_df.rename(columns={"capex": "capex_pu", "opex_f": "opex_f_pu"}, inplace=True)
+
     # generation_ts: dict[str, list[float]]
     generation_ts_df = network.generators_t.p
     generation_ts = {gen: generation_ts_df[gen].tolist() for gen in generation_ts_df.columns}
 
     # annual generation: dict[str, float]
-    annual_generation = generation_ts_df.sum().to_dict()
+    annual_generation_df = pd.DataFrame(generation_ts_df.sum().rename("annual_generation"))
+    annual_generation = annual_generation_df.to_dict()
 
     # storage_ts: empty in v2 (no storage); same shape as generation_ts if storage exists
     if len(network.storage_units) > 0:
@@ -120,46 +150,83 @@ def build_optimiser_results(network):
     else:
         storage_ts = {}
 
+    # annual storage flow - use as sanity check
+    annual_storage_flow = storage_ts_df.sum().to_dict()
+
     # generator_stats: p_nom_opt, capital_cost, marginal_cost (each dict[str, float])
-    stats_cols = ["p_nom_opt", "capital_cost", "marginal_cost"]
-    raw_gen = network.generators[stats_cols].to_dict()
-    # TODO - capex needs to be multiplied by p_nom_opt
-    # TODO - capex needs to be separated from opex_f
-    # TODO - marginal_cost needs to be separated into opex_v and energy_cost
-    # TODO - energy_cost and opex_v need to be multiplied by MWh produced (/ efficiency for energy_cost)
-    generator_stats = {
-        k: {name: float(v) for name, v in raw_gen[k].items()}
-        for k in stats_cols
-    }
+    gen_stats_df = network.generators
+    gen_stats_df = pd.merge(
+        gen_stats_df, annual_generation_df, left_index=True, right_index=True
+        )
+    # merge the PyPSA inputs
+    gen_stats_df = pd.merge(
+        gen_stats_df, gen_inputs_df, left_index=True, right_index=True
+        )
+    # calcaulate final results
+    gen_stats_df["total_capex"] = gen_stats_df["capex_pu"] * gen_stats_df["p_nom_opt"]
+    gen_stats_df["total_opex_f"] = gen_stats_df["opex_f_pu"] * gen_stats_df["p_nom_opt"]
+    # TODO - capex needs un-annualising - maybe
+    gen_stats_df["total_energy_cost"] = (
+        gen_stats_df["energy_cost"] * gen_stats_df["annual_generation"] / gen_stats_df["efficiency"]
+        )
+    gen_stats_df["total_opex_v"] = gen_stats_df["opex_v"] * gen_stats_df["p_nom_opt"]
+    gen_stats_df["total_opex"] = gen_stats_df["total_opex_f"] + gen_stats_df["total_opex_v"]
+    # Calculate CO2 emissions and cost
+    gen_stats_df = pd.merge(
+        gen_stats_df,
+        network.carriers["co2_emissions"],
+        left_on="carrier",
+        right_index=True,
+        how="outer"
+        ).rename(columns={"co2_emissions": "co2_emissions_primary"}).fillna(0)
+    gen_stats_df["total_co2_emission"] = (
+        gen_stats_df["co2_emissions_primary"]
+        * gen_stats_df["annual_generation"]
+        / gen_stats_df["efficiency"]
+    )
+    gen_stats_df["total_co2_cost"] = (
+        gen_stats_df["total_co2_emission"] * co2_price
+    )
+    
+    stats_cols = [
+        "p_nom_opt",
+        "total_capex",
+        "total_opex",
+        "total_energy_cost",
+        "total_co2_emission",
+        "total_co2_cost",
+    ]
+    gen_stats_df = gen_stats_df[stats_cols]
+    gen_stats_dict = gen_stats_df.to_dict()
 
     # storage_stats: same shape; empty dicts when no storage
     if len(network.storage_units) > 0:
-        raw_stor = network.storage_units[stats_cols].to_dict()
-        # TODO - capex needs to be multiplied by p_nom_opt
-        # TODO - capex needs to be separated from opex_f
-        # TODO - marginal_cost needs to be separated into opex_v and energy_cost
-        # TODO - energy_cost and opex_v need to be multiplied by MWh produced (/ efficiency for energy_cost)
-        storage_stats = {
-            k: {name: float(v) for name, v in raw_stor[k].items()}
-            for k in stats_cols
-        }
-    else:
-        storage_stats = {k: {} for k in stats_cols}
+        storage_stats_df = network.storage_units
+        # merge the PyPSA inputs
+        storage_stats_df = pd.merge(
+            storage_stats_df, storage_inputs_df, left_index=True, right_index=True
+            )
+        # TODO - unannualise CAPEX?
+        storage_stats_df["total_capex"] = storage_stats_df["capex_pu"] * storage_stats_df["p_nom_opt"]
+        storage_stats_df["total_opex_f"] = storage_stats_df["opex_f_pu"] * storage_stats_df["p_nom_opt"]
+        storage_stats_df["total_opex"] = storage_stats_df["total_opex_f"]
 
-    # total_emissions: only carriers with co2_emissions (renewables -> 0)
-    carrier_emissions = network.generators.carrier.map(
-        network.carriers.co2_emissions
-    ).fillna(0)
-    total_emissions = float(
-        network.generators_t.p.multiply(carrier_emissions, axis=1).sum().sum()
-    )
+        stats_cols = [
+            "p_nom_opt",
+            "total_capex",
+            "total_opex",
+        ]
+        storage_stats_df = storage_stats_df[stats_cols]
+        storage_stats_dict = storage_stats_df.to_dict()
+    else:
+        storage_stats_dict = {k: {} for k in stats_cols}
 
     return {
         "total_cost": total_cost,
-        "total_emissions": total_emissions,
-        "generator_stats": generator_stats,
-        "storage_stats": storage_stats,   
-        "annual_generation": annual_generation,
+        "total_emissions": gen_stats_df["total_co2_emission"].sum(),
+        "generator_stats": gen_stats_dict,
+        "storage_stats": storage_stats_dict,   
+        "annual_generation": annual_generation["annual_generation"],
         "generation_ts": generation_ts,
         "storage_ts": storage_ts,
     }
@@ -173,18 +240,41 @@ def main(data: dict):
     gen_enabled = [g for g in gen if gen[g]["enabled"]]
     generation_instances = [Generation(g, gen[g]) for g in gen_enabled]
 
-    storage = data["battery_storage"]
+    storage = data.get("battery_storage", {})
     storage_enabled = storage["enabled"]
     if storage_enabled:
         storage_instances = [Storage("battery_storage", storage)]
     else:
         storage_instances = []
 
-    network = pypsa_model(load=load, generators=generation_instances, storage=storage_instances)
-    results = build_optimiser_results(network)
+    co2_price = (
+        (
+            (data.get("co2") or {}).get("costs") or {}).get("Carbon Price") or {}
+        ).get("value", 0.0)
+
+    network = pypsa_model(
+        load=load,
+        generators=generation_instances,
+        storage=storage_instances,
+        co2_price=co2_price
+        )
+    results = build_optimiser_results(
+        network,
+        generation_instances,
+        storage_instances,
+        co2_price
+        )
     return results
 
-def pypsa_model(load: float, generators: list[Generation], storage: list[Storage]):
+def pypsa_model(
+    load: float,
+    generators: list[Generation],
+    storage: list[Storage],
+    co2_price: float
+    ):
+    """
+    co2_price: float - price of CO2 in USD/tCO2
+    """
 
     # Create network with snapshots
     network = pypsa.Network()
@@ -195,8 +285,9 @@ def pypsa_model(load: float, generators: list[Generation], storage: list[Storage
     network.add("Bus", "bus_0")
 
     # TODO - check assumption
-    network.add("Carrier", "gas", co2_emissions=0.35)  # tonnes/MWh for CCGT
-
+    gas_co2_emissions = 0.2  # tonnes CO2/MWh primary energy
+    network.add("Carrier", "gas", co2_emissions=gas_co2_emissions)
+    
     # Add constant load (100 MW)
     network.add(
         "Load",
@@ -213,8 +304,11 @@ def pypsa_model(load: float, generators: list[Generation], storage: list[Storage
         print("Energy cost: ", gen.energy_cost)
         print()
         marginal_cost = gen.opex_v + gen.energy_cost
+        if gen.carrier == "gas":
+            marginal_cost += gas_co2_emissions * co2_price / gen.efficiency
         capex = gen.capex + gen.opex_f
         # TODO - annualise the capex
+
         network.add(
             "Generator",
             name=gen.name,
@@ -240,7 +334,7 @@ def pypsa_model(load: float, generators: list[Generation], storage: list[Storage
             p_nom_extendable=True,  # KEY: make capacity a decision variable
             p_nom_min=0,            # minimum capacity
             capital_cost=capex,     # cost per MW per year (annualized CAPEX)
-            marginal_cost=store.opex_v,
+            # marginal_cost=store.opex_v,
             max_hours=store.max_hours,
             standing_loss=store.standing_loss,
             efficiency_store=one_way_efficiency,
