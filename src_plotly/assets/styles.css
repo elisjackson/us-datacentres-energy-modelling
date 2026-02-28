@@ -19,12 +19,15 @@ body {
     color: #95a5a6;
     margin-bottom: 0;
     line-height: 1.4;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .app-container.container-fluid {
     padding-left: 0;
     padding-right: 0;
     padding-top: 0;
+    min-width: 468px;
 }
 
 .app-layout {
@@ -491,22 +494,15 @@ body {
     row-gap: 1rem;
 }
 
-/* Generation input cards: cost level rows and header – button/label holds its width, input/unit fills the rest */
-.cost-level-row,
-.cost-column-header {
+/* Generation input cards: cost level rows – button holds its width, input fills the rest */
+.cost-level-row {
     flex-wrap: nowrap !important;
 }
 .cost-level-row > :first-child {
     flex: 0 0 auto !important;
     width: auto !important;
 }
-.cost-column-header > :first-child {
-    flex: 0 0 auto !important;
-    width: auto !important;
-    max-width: 6.5rem;
-}
-.cost-level-row > :last-child,
-.cost-column-header > :last-child {
+.cost-level-row > :last-child {
     flex: 1 1 auto !important;
     min-width: 0 !important;
     overflow: hidden;
@@ -514,7 +510,10 @@ body {
 
 /* Generation input cards: cost parameter columns */
 .cost-column-header {
+    display: block;
     margin-bottom: 0.5rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 .cost-level-btn {
     border-top-left-radius: 10px !important;

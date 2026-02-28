@@ -213,13 +213,19 @@ class GenerationInput():
             )
         )
         
-        # Label row on top, then level rows below
+        # Build source attribution text
+        sources = df[["level", "source"]].drop_duplicates()
+        if sources["source"].nunique() == 1:
+            source_text = f"Source: {sources['source'].iloc[0]}"
+        else:
+            parts = [f"{row['level']}: {row['source']}" for _, row in sources.iterrows()]
+            source_text = f"Source: {'; '.join(parts)}"
+
+        # Label row on top, level rows below, source at the bottom
         return html.Div([
-            dbc.Row([
-                dbc.Col(html.Label(cost_parameter, className="cost-column-header-param text-label-blue"), width=self.BTN_COL_WIDTH),
-                dbc.Col(html.Label(unit, className="text-label-blue"), width=self.INPUT_COL_WIDTH),
-            ], className="cost-column-header"),
-            *level_rows  # Unpack the list of Rows
+            html.Label(f"Select {cost_parameter} ({unit})", className="cost-column-header text-label-blue"),
+            *level_rows,
+            html.P(source_text, className="text-muted-small mt-2"),
         ])
 
     def build_collapsible_card(self, is_open: bool = False):
