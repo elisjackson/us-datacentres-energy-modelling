@@ -285,7 +285,15 @@ class GenerationInput():
         children.append(
             html.Div(
                 dbc.Row([
-                    dbc.Col(c) for c in self.cost_columns[self.default_subtype]
+                    dbc.Col(
+                        c,
+                        className=(
+                            "assumptions-flex-col"
+                            if "additional-assumptions" in (getattr(c, "className", "") or "")
+                            else "cost-parameter-col"
+                        ),
+                    )
+                    for c in self.cost_columns[self.default_subtype]
                 ], className="mb-3 cost-columns-row align-items-center"),
                 id={"type": "cost-columns-container", "card": self.card_id}
             )
@@ -535,7 +543,15 @@ def register_callbacks(app):
         
         # Return the updated states and columns
         columns_row = dbc.Row([
-            dbc.Col(c) for c in cost_columns
+            dbc.Col(
+                c,
+                className=(
+                    "assumptions-flex-col"
+                    if "additional-assumptions" in (getattr(c, "className", "") or "")
+                    else "cost-parameter-col"
+                ),
+            )
+            for c in cost_columns
         ], className="mb-3 cost-columns-row align-items-center")
         
         return active_states, outline_states, columns_row

@@ -492,9 +492,15 @@ body {
     max-height: 2000px; /* Large enough for any card content */
 }
 
-/* Cost columns row: last column wraps to a new line sooner than the others */
-.cost-columns-row > .col {
-    min-width: 20rem;
+/* Cost columns row: cost columns have a fixed max, assumptions column flexes */
+.cost-columns-row > .cost-parameter-col {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 22rem;
+}
+.cost-columns-row > .assumptions-flex-col {
+    flex: 1 1 0;
+    min-width: 22rem;
 }
 .cost-columns-row {
     row-gap: 1rem;
@@ -563,6 +569,8 @@ body {
     overflow: hidden;
     font-size: 0.9rem;
     color: #7aabd4;
+    width: 100%;
+    max-width: 40rem;
 }
 .assumptions-title {
     padding: 0.35rem 0.6rem;
@@ -604,6 +612,20 @@ body {
 }
 .assumptions-cell-source {
     font-size: 0.8rem;
+}
+
+/* Assumptions columns: equal defaults, but Value shrinks sooner if needed */
+.additional-assumptions .assumptions-header-row > .col-3,
+.additional-assumptions .assumptions-data-row > .col-3 {
+    flex: 1 1 25%;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+}
+.additional-assumptions .assumptions-header-row > .col-3:nth-child(2),
+.additional-assumptions .assumptions-data-row > .col-3:nth-child(2) {
+    flex: 1 3 15%;
+    min-width: 4.5rem;
 }
 
 /* Generation pill button group */
