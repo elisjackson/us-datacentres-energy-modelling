@@ -1,10 +1,54 @@
 import json
+from typing import Literal
 from datetime import datetime, timedelta
+from pathlib import Path
 from dash import dcc, html, Input, Output, State, no_update
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 
 DEBUG_PRINT_TO_TERMINAL = True  # Set False to disable server-side print when Store updates
+
+DIR = Path(__file__).parent
+COLOR_CONFIG_PATH = DIR / "config" / "chart_color_mapping.json"
+DEFAULT_TECH_COLOR = "#95a5a6"
+
+
+def _normalize_technology_key(name: str) -> str:
+    if name is None:
+        return ""
+    return "".join(ch for ch in str(name).lower() if ch.isalnum())
+
+
+def _load_technology_colors():
+    fallback_color = DEFAULT_TECH_COLOR
+    normalized_mapping = {}
+
+    try:
+        with open(COLOR_CONFIG_PATH, "r") as f:
+            color_config = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return fallback_color, normalized_mapping
+
+    configured_fallback = color_config.get("fallback")
+    if isinstance(configured_fallback, str) and configured_fallback:
+        fallback_color = configured_fallback
+
+    technology_colors = color_config.get("technology_colors", {})
+    if isinstance(technology_colors, dict):
+        for tech_name, color in technology_colors.items():
+            if not isinstance(tech_name, str) or not isinstance(color, str) or not color:
+                continue
+            normalized_mapping[_normalize_technology_key(tech_name)] = color
+
+    return fallback_color, normalized_mapping
+
+
+FALLBACK_TECH_COLOR, TECHNOLOGY_COLORS = _load_technology_colors()
+
+
+def _get_technology_color(technology_name: str) -> str:
+    normalized_name = _normalize_technology_key(technology_name)
+    return TECHNOLOGY_COLORS.get(normalized_name, FALLBACK_TECH_COLOR)
 
 def _fig_layout(xaxis_title: str, yaxis_title: str, show_placeholder=False):
     """Layout matching wind profile: dark theme, transparent background, same fonts/grid."""
@@ -87,6 +131,7 @@ def create_timeseries_plot(timeseries: dict = None):
                 y=values,
                 name=generator,
                 mode="lines",
+                line=dict(color=_get_technology_color(generator)),
             )
         )
     fig.update_layout(**_fig_layout(
@@ -121,10 +166,11 @@ def create_optimal_capacities_graph(capacities: dict = None):
         )
         return fig
 
+    capacity_keys = list(capacities.keys())
     fig.add_bar(
-        x=list(capacities.keys()),
+        x=capacity_keys,
         y=list(capacities.values()),
-        marker=dict(color="#78b4a0"),
+        marker=dict(color=[_get_technology_color(key) for key in capacity_keys]),
     )
     fig.update_layout(
         **_fig_layout(
@@ -141,7 +187,7 @@ def create_annual_generation_graph(annual_generation: dict = None):
     fig = go.Figure()
 
     x_axis_title = "Generator"
-    y_axis_title = "Annual generation (MWh)"
+    y_axis_title = "Annual generation (GWh)"
 
     if annual_generation is None or not annual_generation:
         fig.update_layout(
@@ -166,10 +212,11 @@ def create_annual_generation_graph(annual_generation: dict = None):
         )
         return fig
 
+    generation_keys = list(annual_generation.keys())
     fig.add_bar(
-        x=list(annual_generation.keys()),
-        y=list(annual_generation.values()),
-        marker=dict(color="#4a90e2"),
+        x=generation_keys,
+        y=[value / 1000 for value in annual_generation.values()],
+        marker=dict(color=[_get_technology_color(key) for key in generation_keys]),
     )
     fig.update_layout(
         **_fig_layout(
@@ -190,7 +237,7 @@ def create_costs_graph(costs: dict = None):
     # TODO - un-annualise
     # TODO - check results
     # TODO - add OPEX
-    # TODO - add CO2 cost
+    # TODO - add CO₂ cost
     fig = go.Figure()
 
     x_axis_title = "Generator / storage"
@@ -234,7 +281,7 @@ def create_costs_graph(costs: dict = None):
         go.Bar(
             x=carriers,
             y=[co2_cost.get(c, 0) for c in carriers],
-            name="CO2 cost",
+            name="CO₂ cost",
             marker=dict(color="#e0a86a"),
         )
     )
@@ -256,8 +303,8 @@ def create_costs_graph(costs: dict = None):
     )
     fig.update_layout(
         **_fig_layout(
-            xaxis_title="Generator / storage",
-            yaxis_title="Cost (€)",
+            xaxis_title=x_axis_title,
+            yaxis_title=y_axis_title,
             show_placeholder=False,
         ),
         barmode="group",
@@ -272,13 +319,25 @@ def create_costs_graph(costs: dict = None):
     )
     return fig
 
-def create_card(header: str, value: float):
+def create_card(
+    header: str,
+    value: float,
+    unit: str = "",
+    unit_location: Literal["left", "right"] = "right"
+    ):
+    value = round(value)
+    # apply thousands separator
+    value = f"{value:,}"
+    if unit_location == "left":
+        value_text = f"{unit} {value}" if unit else str(value)
+    else:
+        value_text = f"{value} {unit}" if unit else str(value)
     return dbc.Card(
         [
             dbc.CardHeader(header, className="results-card-header"),
             dbc.CardBody(
                 [
-                    html.H5(round(value), className="card-title results-card-value"),
+                    html.H5(value_text, className="card-title results-card-value"),
                 ]
             )
         ],
@@ -457,16 +516,16 @@ def register_callbacks(app):
     def _update_summary_cards(data):
         if data is None:
             return (
-                create_card("Data Centre Capacity", 0),
-                create_card("Total Generation Capacity", 0),
-                create_card("Total Cost", 0),
-                create_card("Total Emissions", 0),
+                create_card("Data Centre Capacity", 0, "MW"),
+                create_card("Total Generation Capacity", 0, "MW"),
+                create_card("Total Cost", 0, "2023 $", unit_location="left"),
+                create_card("Total Emissions", 0, "tCO₂"),
             )
         return (
-            create_card("Data Centre Capacity", data.get("load", 0)),
-            create_card("Total Generation Capacity", data.get("total_generation_capacity", 0)),
-            create_card("Total Cost", data.get("total_cost", 0)),
-            create_card("Total Emissions", data.get("total_emissions", 0)),
+            create_card("Data Centre Capacity", data.get("load", 0), "MW"),
+            create_card("Total Generation Capacity", data.get("total_generation_capacity", 0), "MW"),
+            create_card("Total Cost", data.get("total_cost", 0), "2023 $", unit_location="left"),
+            create_card("Total Emissions", data.get("total_emissions", 0), "tCO₂"),
         )
 
     @app.callback(

@@ -1,0 +1,12 @@
+{
+    "fallback": "#95a5a6",
+    "technology_colors": {
+        "Solar": "#ffd45a",
+        "Wind": "#5dd3b6",
+        "Gas": "#8e977d",
+        "SMR": "#9f8383",
+        "Battery Storage": "#a2cb8b",
+        "Grid Electricity": "#3498db",
+        "CO2": "#e74c3c"
+    }
+}
