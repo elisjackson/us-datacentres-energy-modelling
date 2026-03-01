@@ -287,7 +287,7 @@ class GenerationInput():
 
 
 # read generation form from config/generation_form.json
-with open(CONFIG_DIR / "generation_form copy.json", "r") as f:
+with open(CONFIG_DIR / "technology_costs.json", "r") as f:
     GENERATION_CONFIG = json.load(f)
 
 

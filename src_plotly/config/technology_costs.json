@@ -144,7 +144,7 @@
             "cost_choices": [
                 {
                     "name": "CAPEX",
-                    "unit": "2023 USD/MW",
+                    "unit": "2023 USD/kW",
                     "values": [
                         {
                             "name": "Low",
@@ -169,13 +169,13 @@
                     "values": [
                         {
                             "name": "Mid",
-                            "value": 10,
-                            "source": "DESNZ"
+                            "value": 30,
+                            "source": "ELIS"
                         },
                         {
                             "name": "High",
-                            "value": 15,
-                            "source": "DESNZ"
+                            "value": 40,
+                            "source": "ELIS"
                         }
                     ]
                 }
@@ -363,6 +363,17 @@
                             "name": "Mid",
                             "value": 4,
                             "source": ""
+                        }
+                    ]
+                },
+                {
+                    "name": "Round trip efficiency",
+                    "unit": "%",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 85,
+                            "source": "NREL, 2023"
                         }
                     ]
                 }

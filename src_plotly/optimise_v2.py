@@ -25,14 +25,34 @@ class Generation():
         self.location = data.get("location", None)
 
         costs = data["costs"]
-        self.capex = costs.get("CAPEX", {}).get("value", 0)
-        self.opex_f = costs.get("Fixed OPEX", {}).get("value", 0)
-        self.opex_v = costs.get("Variable OPEX", {}).get("value", 0)
+        
+        capex_dict = costs.get("CAPEX", {})
+        self.capex_unit = capex_dict.get("unit", "")
+        if "/kW" not in self.capex_unit or "/kWh" in self.capex_unit:
+            raise ValueError(f"Expecting CAPEX in /kW value, got {self.capex_unit}")
+        self.capex = capex_dict.get("value", 0) * 1000  # convert to /MW cost
+
+        opex_f_dict = costs.get("Fixed OPEX", {})
+        self.opex_f_unit = opex_f_dict.get("unit", "")
+        if opex_f_dict:
+            if "/kW" not in self.opex_f_unit or "/kWh" in self.opex_f_unit:
+                raise ValueError(f"Expecting Fixed OPEX in /kW value, got {self.opex_f_unit}")
+        self.opex_f = opex_f_dict.get("value", 0) * 1000  # convert to /MW cost
+        
+        opex_v_dict = costs.get("Variable OPEX", {})
+        self.opex_v_unit = opex_v_dict.get("unit", "")
+        if opex_v_dict:
+            if "/MWh" not in self.opex_v_unit:
+                raise ValueError(f"Expecting Variable OPEX in /MWh value, got {self.opex_v_unit}")
+        self.opex_v = opex_v_dict.get("value", 0)
 
         # search for energy cost value
         self.energy_cost = 0
         for keyword in ["Fuel cost", "Electricity Price", "Energy cost"]:
             if keyword in costs:
+                self.energy_cost_unit = costs[keyword].get("unit", "")
+                if "/MWh" not in self.energy_cost_unit:
+                    raise ValueError(f"Expecting Energy cost in /MWh value, got {self.energy_cost_unit}")
                 self.energy_cost = costs[keyword].get("value", 0)
                 break
 
@@ -48,7 +68,7 @@ class Generation():
             self.carrier = None
             self.efficiency = 1
 
-        pass
+        self.lifetime = data.get("Lifetime", {}).get("value", 20)  # TODO - get from JSON
 
 
     def get_renewable_profile(self):
@@ -91,18 +111,31 @@ class Storage():
         self.name = name
 
         costs = data["costs"]
-        self.capex = costs.get("CAPEX", {}).get("value", 0)
-        # TODO - tidy this, reflect the assumption in the FE
-        self.opex_f = self.capex * 0.02  # 2% of CAPEX;
-        # assumption from https://ember-energy.org/latest-insights/how-cheap-is-battery-storage/
-        self.opex_v = 0
-        # self.opex_f = costs.get("Fixed OPEX", {}).get("value", 0)
-        # self.opex_v = costs.get("Variable OPEX", {}).get("value", 0)
 
-        # TODO - add these to the input JSON
-        self.round_trip_efficiency = data.get("round_trip_efficiency", 0.90)
-        self.standing_loss = data.get("standing_loss", 0.001)  # TODO - check assumption
-        self.max_hours = data.get("max_hours", 2)
+        capex_dict = costs.get("CAPEX", {})
+        self.capex_unit = capex_dict.get("unit", "")
+        if "/kW" not in self.capex_unit or "/kWh" in self.capex_unit:
+            raise ValueError(f"Expecting CAPEX in /kW value, got {self.capex_unit}")
+        self.capex = capex_dict.get("value", 0) * 1000  # convert to /MW cost
+        
+        opex_f_dict = costs.get("Fixed OPEX", {})
+        self.opex_f_unit = opex_f_dict.get("unit", "")
+        if opex_f_dict:
+            if "/kW" not in self.opex_f_unit or "/kWh" in self.opex_f_unit:
+                raise ValueError(f"Expecting Fixed OPEX in /kW value, got {self.opex_f_unit}")
+        self.opex_f = opex_f_dict.get("value", 0) * 1000  # convert to /MW cost
+
+        opex_v_dict = costs.get("Variable OPEX", {})
+        self.opex_v_unit = opex_v_dict.get("unit", "")
+        if opex_v_dict:
+            if "/MWh" not in self.opex_v_unit:
+                raise ValueError(f"Expecting Variable OPEX in /MWh value, got {self.opex_v_unit}")
+
+        # TODO - ensure these are getting pulled through from the JSON correc
+        self.round_trip_efficiency = data.get("Round trip efficiency", {}).get("value", 0.85)
+        self.standing_loss = data.get("standing_loss", 0)
+        self.max_hours = data.get("Energy/Power ratio", {}).get("value", 4)
+        self.lifetime = data.get("Lifetime", {}).get("value", 20)  # TODO - get from JSON
 
 
 def build_optimiser_results(load, network, generation_instances, storage_instances, co2_price):
@@ -283,6 +316,7 @@ def main(data: dict):
         )
     return results
 
+
 def pypsa_model(
     load: float,
     generators: list[Generation],
@@ -305,7 +339,7 @@ def pypsa_model(
     gas_co2_emissions = 0.2  # tonnes CO2/MWh primary energy
     network.add("Carrier", "gas", co2_emissions=gas_co2_emissions)
     
-    # Add constant load (100 MW)
+    # Add constant load
     network.add(
         "Load",
         name="Data centre load",
@@ -323,8 +357,7 @@ def pypsa_model(
         marginal_cost = gen.opex_v + gen.energy_cost
         if gen.carrier == "gas":
             marginal_cost += gas_co2_emissions * co2_price / gen.efficiency
-        capex = gen.capex + gen.opex_f
-        # TODO - annualise the capex
+        capex = (gen.capex / gen.lifetime) + gen.opex_f
 
         network.add(
             "Generator",
@@ -341,9 +374,7 @@ def pypsa_model(
 
     for store in storage:
         one_way_efficiency = np.sqrt(store.round_trip_efficiency)
-        capex = store.capex + store.opex_f
-        # TODO - annualise the capex
-        # OR use discount rate, overnight cost and lifetime
+        capex = (store.capex / store.lifetime) + store.opex_f
         network.add(
             "StorageUnit",
             name=store.name,
