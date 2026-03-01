@@ -63,12 +63,11 @@ class Generation():
 
         if self.name == "Gas":
             self.carrier = "gas"
-            self.efficiency = 0.5  # TODO check assumption
         else:
             self.carrier = None
-            self.efficiency = 1
 
-        self.lifetime = data.get("Lifetime", {}).get("value", 20)  # TODO - get from JSON
+        self.efficiency = costs.get("Efficiency", {}).get("value", 100) / 100
+        self.lifetime = costs.get("Lifetime", {}).get("value", 20)
 
 
     def get_renewable_profile(self):
@@ -131,11 +130,10 @@ class Storage():
             if "/MWh" not in self.opex_v_unit:
                 raise ValueError(f"Expecting Variable OPEX in /MWh value, got {self.opex_v_unit}")
 
-        # TODO - ensure these are getting pulled through from the JSON correc
-        self.round_trip_efficiency = data.get("Round trip efficiency", {}).get("value", 0.85)
-        self.standing_loss = data.get("standing_loss", 0)
-        self.max_hours = data.get("Energy/Power ratio", {}).get("value", 4)
-        self.lifetime = data.get("Lifetime", {}).get("value", 20)  # TODO - get from JSON
+        self.round_trip_efficiency = costs.get("Round trip efficiency", {}).get("value", 85) / 100
+        self.standing_loss = costs.get("standing_loss", 0)
+        self.max_hours = costs.get("Energy/Power ratio", {}).get("value", 4)
+        self.lifetime = costs.get("Lifetime", {}).get("value", 20)
 
 
 def build_optimiser_results(load, network, generation_instances, storage_instances, co2_price):
@@ -156,7 +154,7 @@ def build_optimiser_results(load, network, generation_instances, storage_instanc
         gen_inputs_df = pd.concat([gen_inputs_df, pd.DataFrame(attributes, index=[gen.name])])
     # drop anything we don't need
     # e.g. carrier and efficiency are already given in the PyPSA network.generators dataframe
-    gen_inputs_df.drop(columns=["name", "location", "carrier", "efficiency"], inplace=True)
+    gen_inputs_df.drop(columns=["name", "location", "carrier", "efficiency", "lifetime"], inplace=True)
     gen_inputs_df.rename(columns={"capex": "capex_pu", "opex_f": "opex_f_pu"}, inplace=True)
 
     # build dataframe of the PyPSA storage inputs
@@ -167,7 +165,7 @@ def build_optimiser_results(load, network, generation_instances, storage_instanc
     # drop anything we don't need
     # e.g. carrier and efficiency are already given in the PyPSA network.storage_units dataframe
     storage_inputs_df.drop(
-        columns=["name", "round_trip_efficiency", "standing_loss", "max_hours"],
+        columns=["name", "round_trip_efficiency", "standing_loss", "max_hours", "lifetime"],
         inplace=True,
         errors="ignore"
         )
@@ -204,17 +202,17 @@ def build_optimiser_results(load, network, generation_instances, storage_instanc
         gen_stats_df, gen_inputs_df, left_index=True, right_index=True
         )
     # calcaulate final results
-    gen_stats_df["total_capex"] = gen_stats_df["capex_pu"] * gen_stats_df["p_nom_opt"]
+    # capex is annualised by lifetime
+    gen_stats_df["total_capex"] = (
+        gen_stats_df["capex_pu"] * gen_stats_df["p_nom_opt"] / gen_stats_df["lifetime"]
+        )
     gen_stats_df["total_opex_f"] = gen_stats_df["opex_f_pu"] * gen_stats_df["p_nom_opt"]
-    # TODO - capex needs un-annualising - maybe
-    # TODO - opex needs multplying by lifetime
     gen_stats_df["total_energy_cost"] = (
         gen_stats_df["energy_cost"] * gen_stats_df["annual_generation"] / gen_stats_df["efficiency"]
         )
     gen_stats_df["total_opex_v"] = gen_stats_df["opex_v"] * gen_stats_df["p_nom_opt"]
     gen_stats_df["total_opex"] = gen_stats_df["total_opex_f"] + gen_stats_df["total_opex_v"]
     # Calculate CO2 emissions and cost
-    # TODO - needs multiplying by lifetime
     gen_stats_df = pd.merge(
         gen_stats_df,
         network.carriers["co2_emissions"],
@@ -222,11 +220,13 @@ def build_optimiser_results(load, network, generation_instances, storage_instanc
         right_index=True,
         how="outer"
         ).rename(columns={"co2_emissions": "co2_emissions_primary"}).fillna(0)
+    # total CO₂ emission: tCO2
     gen_stats_df["total_co2_emission"] = (
         gen_stats_df["co2_emissions_primary"]
         * gen_stats_df["annual_generation"]
         / gen_stats_df["efficiency"]
     )
+    # co2_price: USD/tCO2
     gen_stats_df["total_co2_cost"] = (
         gen_stats_df["total_co2_emission"] * co2_price
     )
@@ -249,9 +249,10 @@ def build_optimiser_results(load, network, generation_instances, storage_instanc
         storage_stats_df = pd.merge(
             storage_stats_df, storage_inputs_df, left_index=True, right_index=True
             )
-        # TODO - unannualise CAPEX?
-        # TODO - opex needs multplying by lifetime
-        storage_stats_df["total_capex"] = storage_stats_df["capex_pu"] * storage_stats_df["p_nom_opt"]
+        # capex is annualised by lifetime
+        storage_stats_df["total_capex"] = (
+            storage_stats_df["capex_pu"] * storage_stats_df["p_nom_opt"] / storage_stats_df["lifetime"]
+            )
         storage_stats_df["total_opex_f"] = storage_stats_df["opex_f_pu"] * storage_stats_df["p_nom_opt"]
         storage_stats_df["total_opex"] = storage_stats_df["total_opex_f"]
 
@@ -335,8 +336,7 @@ def pypsa_model(
     # Add bus
     network.add("Bus", "bus_0")
 
-    # TODO - check assumption
-    gas_co2_emissions = 0.2  # tonnes CO2/MWh primary energy
+    gas_co2_emissions = 0.2  # tCO2/MWh primary energy
     network.add("Carrier", "gas", co2_emissions=gas_co2_emissions)
     
     # Add constant load
@@ -356,6 +356,10 @@ def pypsa_model(
         print()
         marginal_cost = gen.opex_v + gen.energy_cost
         if gen.carrier == "gas":
+            # co2_price: USD/tCO2
+            # gas_co2_emissions: tCO2/MWh primary energy
+            # efficiency: %
+            # marginal_cost: USD/MWh
             marginal_cost += gas_co2_emissions * co2_price / gen.efficiency
         capex = (gen.capex / gen.lifetime) + gen.opex_f
 
@@ -369,7 +373,8 @@ def pypsa_model(
             capital_cost=capex,     # cost per MW per year (annualized CAPEX)
             marginal_cost=marginal_cost,
             efficiency=gen.efficiency,
-            p_max_pu=gen.pu_profile["pu_power"].values
+            p_max_pu=gen.pu_profile["pu_power"].values,
+            lifetime=gen.lifetime,
             )
 
     for store in storage:
@@ -387,6 +392,7 @@ def pypsa_model(
             standing_loss=store.standing_loss,
             efficiency_store=one_way_efficiency,
             efficiency_dispatch=one_way_efficiency,
+            lifetime=store.lifetime,
         )
 
     # Solve for optimal capacities AND dispatch

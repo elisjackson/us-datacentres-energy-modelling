@@ -23,6 +23,12 @@ body {
     overflow-wrap: break-word;
 }
 
+/* Reusable white helper text (notes/captions on dark backgrounds) */
+.text-note-white {
+    color: #ffffff;
+    margin-bottom: 0;
+}
+
 .app-container.container-fluid {
     padding-left: 0;
     padding-right: 0;

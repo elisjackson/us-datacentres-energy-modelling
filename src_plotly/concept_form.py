@@ -187,15 +187,25 @@ class GenerationInput():
 
         unit = df["unit"].unique()[0]
 
-        # Build a row for each cost level (first one is active by default)
+        # Prefer "Mid" as default selection when available, otherwise fallback to first level.
+        default_level = None
+        for level in df["level"].tolist():
+            if str(level).strip().lower() == "mid":
+                default_level = level
+                break
+        if default_level is None and not df.empty:
+            default_level = df.iloc[0]["level"]
+
+        # Build a row for each cost level.
         level_rows = []
-        for idx, (i, row) in enumerate(df.iterrows()):
+        for _, row in df.iterrows():
+            row_level = row["level"]
             level_rows.append(
                 self._create_cost_level_row(
                     cost_parameter=cost_parameter,
-                    level=row["level"],
+                    level=row_level,
                     value=row["value"],
-                    is_active=(idx == 0),  # First row is active
+                    is_active=(row_level == default_level),
                     input_disabled=True  # Pre-defined values are read-only
                 )
             )

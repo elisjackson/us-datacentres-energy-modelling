@@ -241,7 +241,7 @@ def create_costs_graph(costs: dict = None):
     fig = go.Figure()
 
     x_axis_title = "Generator / storage"
-    y_axis_title = "Cost (2023 USD)"
+    y_axis_title = "Annualised cost ($)"
 
     if costs is None or not costs:
         fig.update_layout(
@@ -367,12 +367,17 @@ def results_layout():
             ),
             dbc.Row(
                 [
-                    dbc.Col(create_card("Data Centre Capacity", 1000), id="data-centre-capacity-card"),
-                    dbc.Col(create_card("Total Generation Capacity", 1000), id="total-generation-capacity-card"),
-                    dbc.Col(create_card("Total Cost", 1000), id="total-cost-card"),
-                    dbc.Col(create_card("Total Emissions", 10000), id="total-emissions-card"),
+                    dbc.Col(create_card("Data centre capacity", 1000), id="data-centre-capacity-card"),
+                    dbc.Col(create_card("Total generation capacity", 1000), id="total-generation-capacity-card"),
+                    dbc.Col(create_card("Annualised cost", 1000), id="total-cost-card"),
+                    dbc.Col(create_card("Total emissions", 10000), id="total-emissions-card"),
                 ],
                 className="align-items-center gy-3",
+            ),
+            html.P(
+                """CAPEX costs have been annualised by dividing total CAPEX by the technology lifetime.
+                No discount rates included. All costs are in 2023 USD.""",
+                className="mt-3 mb-2 text-note-white",
             ),
             dbc.Row(
                 [
@@ -516,16 +521,16 @@ def register_callbacks(app):
     def _update_summary_cards(data):
         if data is None:
             return (
-                create_card("Data Centre Capacity", 0, "MW"),
-                create_card("Total Generation Capacity", 0, "MW"),
-                create_card("Total Cost", 0, "2023 $", unit_location="left"),
-                create_card("Total Emissions", 0, "tCO₂"),
+                create_card("Data centre capacity", 0, "MW"),
+                create_card("Total generation capacity", 0, "MW"),
+                create_card("Annualised cost", 0, "$", unit_location="left"),
+                create_card("Total emissions", 0, "tCO₂"),
             )
         return (
-            create_card("Data Centre Capacity", data.get("load", 0), "MW"),
-            create_card("Total Generation Capacity", data.get("total_generation_capacity", 0), "MW"),
-            create_card("Total Cost", data.get("total_cost", 0), "2023 $", unit_location="left"),
-            create_card("Total Emissions", data.get("total_emissions", 0), "tCO₂"),
+            create_card("Data centre capacity", data.get("load", 0), "MW"),
+            create_card("Total generation capacity", data.get("total_generation_capacity", 0), "MW"),
+            create_card("Annualised cost", data.get("total_cost", 0), "$", unit_location="left"),
+            create_card("Total emissions", data.get("total_emissions", 0), "tCO₂"),
         )
 
     @app.callback(
@@ -533,8 +538,6 @@ def register_callbacks(app):
         Input("optimiser-results-data", "data"),
     )
     def _show_results_store_for_debugging(data):
-        if DEBUG_PRINT_TO_TERMINAL and data is not None:
-            print("[optimiser-results-data]", json.dumps(data, indent=2, default=str))
         if data is None:
             summary = "No results yet. Run the optimiser to populate."
             return html.Pre(summary, className="text-muted small")
