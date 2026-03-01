@@ -671,6 +671,28 @@ body {
     margin-bottom: 0;
 }
 
+/* Results bar charts: keep a responsive aspect ratio on narrow screens */
+.results-bar-chart-wrapper {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    min-height: 220px;
+    max-height: 420px;
+}
+.results-bar-chart-wrapper .dash-graph {
+    height: 100%;
+}
+@media (max-width: 991px) {
+    .results-bar-chart-wrapper {
+        aspect-ratio: 16 / 10;
+    }
+}
+@media (max-width: 767px) {
+    .results-bar-chart-wrapper {
+        aspect-ratio: 1 / 1;
+        min-height: 180px;
+    }
+}
+
 /* Optimise button */
 #optimise-button {
     background-color: #76a576 !important;

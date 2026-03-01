@@ -184,8 +184,6 @@ class GenerationInput():
             (self.cost_choices_df["subtype"] == selected_subtype) &
             (self.cost_choices_df["cost_parameter"] == cost_parameter)
         ]
-        print(f"Building {cost_parameter} for {selected_subtype}:")
-        print(df)
 
         unit = df["unit"].unique()[0]
 
@@ -915,9 +913,6 @@ def register_callbacks(app):
                 'subtype': selected_subtype,
                 'costs': costs
             }
-        
-        print("Collected parameters:")
-        print(json.dumps(parameters, indent=2))
 
         # save collected parameters to file (for debugging)
         with open("collected_parameters.json", "w") as f:

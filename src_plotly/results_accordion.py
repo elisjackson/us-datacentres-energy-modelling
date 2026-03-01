@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timedelta
 from dash import dcc, html, Input, Output, State, no_update
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
@@ -60,33 +61,43 @@ def create_timeseries_plot(timeseries: dict = None):
     }
     """
     fig = go.Figure()
+    start_datetime = datetime(2025, 1, 1)
+
+    x_axis_title = "Time"
+    y_axis_title = "Generation (MW)"
 
     if timeseries is None or not timeseries:
-        fig.update_layout(**_fig_layout(xaxis_title="TODO", yaxis_title="TODO", show_placeholder=True))
+        fig.update_layout(**_fig_layout(
+            xaxis_title=x_axis_title,
+            yaxis_title=y_axis_title,
+            show_placeholder=True
+            ))
         fig.update_layout(
             xaxis=dict(
                 rangeslider=dict(visible=True),
-                type="linear",
+                type="date",
             )
         )
         return fig
 
     for generator, values in timeseries.items():
-        print(generator)
-        print(values[:20])
         fig.add_trace(
             go.Scatter(
-                x=list(range(len(values))),
+                x=[start_datetime + timedelta(hours=hour) for hour in range(len(values))],
                 y=values,
                 name=generator,
                 mode="lines",
             )
         )
-    fig.update_layout(**_fig_layout(xaxis_title="TODO", yaxis_title="TODO", show_placeholder=False))
+    fig.update_layout(**_fig_layout(
+        xaxis_title=x_axis_title,
+        yaxis_title=y_axis_title,
+        show_placeholder=False
+        ))
     fig.update_layout(
         xaxis=dict(
             rangeslider=dict(visible=True),
-            type="linear",
+            type="date",
         )
     )
 
@@ -124,6 +135,52 @@ def create_optimal_capacities_graph(capacities: dict = None):
     )
     return fig
 
+
+def create_annual_generation_graph(annual_generation: dict = None):
+    """Create a bar chart of annual energy generated per generator."""
+    fig = go.Figure()
+
+    x_axis_title = "Generator"
+    y_axis_title = "Annual generation (MWh)"
+
+    if annual_generation is None or not annual_generation:
+        fig.update_layout(
+            **_fig_layout(
+                xaxis_title=x_axis_title,
+                yaxis_title=y_axis_title,
+                show_placeholder=False,
+            )
+        )
+        fig.update_layout(
+            annotations=[
+                dict(
+                    text="Run the optimiser to see annual generation by generator",
+                    x=0.5,
+                    y=0.5,
+                    xref="paper",
+                    yref="paper",
+                    showarrow=False,
+                    font=dict(color="#95a5a6", size=14),
+                )
+            ]
+        )
+        return fig
+
+    fig.add_bar(
+        x=list(annual_generation.keys()),
+        y=list(annual_generation.values()),
+        marker=dict(color="#4a90e2"),
+    )
+    fig.update_layout(
+        **_fig_layout(
+            xaxis_title=x_axis_title,
+            yaxis_title=y_axis_title,
+            show_placeholder=False,
+        )
+    )
+    return fig
+
+
 def create_costs_graph(costs: dict = None):
     """
     Create a grouped bar chart of costs: one group CAPEX, one group Marginal.
@@ -136,11 +193,14 @@ def create_costs_graph(costs: dict = None):
     # TODO - add CO2 cost
     fig = go.Figure()
 
+    x_axis_title = "Generator / storage"
+    y_axis_title = "Cost (2023 USD)"
+
     if costs is None or not costs:
         fig.update_layout(
             **_fig_layout(
-                xaxis_title="Generator / storage",
-                yaxis_title="Cost (€)",
+                xaxis_title=x_axis_title,
+                yaxis_title=y_axis_title,
                 show_placeholder=True,
             )
         )
@@ -155,8 +215,8 @@ def create_costs_graph(costs: dict = None):
     if not carriers:
         fig.update_layout(
             **_fig_layout(
-                xaxis_title="Generator / storage",
-                yaxis_title="Cost (€)",
+                xaxis_title=x_axis_title,
+                yaxis_title=y_axis_title,
                 show_placeholder=True,
             )
         )
@@ -258,20 +318,40 @@ def results_layout():
             dbc.Row(
                 [
                     dbc.Col(
-                        dcc.Graph(
-                            figure=create_optimal_capacities_graph(capacities=None),
-                            id="optimal-capacities-fig",
-                            config={"displayModeBar": False},
+                        html.Div(
+                            dcc.Graph(
+                                figure=create_optimal_capacities_graph(capacities=None),
+                                id="optimal-capacities-fig",
+                                config={"displayModeBar": False, "responsive": True},
+                                style={"height": "100%"},
+                            ),
+                            className="results-bar-chart-wrapper",
                         ),
-                        md=6,
+                        md=4,
                     ),
                     dbc.Col(
-                        dcc.Graph(
-                            figure=create_costs_graph(costs=None),
-                            id="costs-fig",
-                            config={"displayModeBar": False},
+                        html.Div(
+                            dcc.Graph(
+                                figure=create_annual_generation_graph(annual_generation=None),
+                                id="annual-generation-fig",
+                                config={"displayModeBar": False, "responsive": True},
+                                style={"height": "100%"},
+                            ),
+                            className="results-bar-chart-wrapper",
                         ),
-                        md=6,
+                        md=4,
+                    ),
+                    dbc.Col(
+                        html.Div(
+                            dcc.Graph(
+                                figure=create_costs_graph(costs=None),
+                                id="costs-fig",
+                                config={"displayModeBar": False, "responsive": True},
+                                style={"height": "100%"},
+                            ),
+                            className="results-bar-chart-wrapper",
+                        ),
+                        md=4,
                     ),
                 ]
             ),
@@ -351,6 +431,19 @@ def register_callbacks(app):
         all_capacities = {**generator_capacities, **storage_capacities}
 
         return create_optimal_capacities_graph(capacities=all_capacities)
+
+    @app.callback(
+        Output("annual-generation-fig", "figure"),
+        Input("optimiser-results-data", "data"),
+    )
+    def _update_annual_generation_graph(data):
+
+        if data is None:
+            return create_annual_generation_graph(annual_generation=None)
+
+        annual_generation = data.get("annual_generation", {})
+
+        return create_annual_generation_graph(annual_generation=annual_generation)
 
     @app.callback(
         [
