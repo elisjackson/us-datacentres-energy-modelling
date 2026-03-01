@@ -46,6 +46,17 @@
                             "source": "DESNZ, 2023"
                         }
                     ]
+                },
+                {
+                    "name": "Lifetime",
+                    "unit": "Years",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 25,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
                 }
             ]
         },
@@ -95,6 +106,17 @@
                             "source": "DESNZ, 2023"
                         }
                     ]
+                },
+                {
+                    "name": "Lifetime",
+                    "unit": "Years",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 30,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
                 }
             ]
         }
@@ -132,6 +154,17 @@
                         {
                             "name": "Mid",
                             "value": 7.65,
+                            "source": "DESNZ, 2024"
+                        }
+                    ]
+                },
+                {
+                    "name": "Lifetime",
+                    "unit": "Years",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 35,
                             "source": "DESNZ, 2024"
                         }
                     ]
@@ -210,6 +243,17 @@
                         {
                             "name": "Mid",
                             "value": 53,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
+                },
+                {
+                    "name": "Lifetime",
+                    "unit": "Years",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 25,
                             "source": "DESNZ, 2023"
                         }
                     ]
@@ -373,6 +417,17 @@
                         {
                             "name": "Mid",
                             "value": 85,
+                            "source": "NREL, 2023"
+                        }
+                    ]
+                },
+                {
+                    "name": "Lifetime",
+                    "unit": "Years",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 15,
                             "source": "NREL, 2023"
                         }
                     ]
