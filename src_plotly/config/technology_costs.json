@@ -173,6 +173,93 @@
         }
     },
     "Gas": {
+        "Gas OCGT": {
+            "cost_choices": [
+                {
+                    "name": "CAPEX",
+                    "unit": "2023 USD/kW",
+                    "values": [
+                        {
+                            "name": "Low",
+                            "value": 415,
+                            "source": "DESNZ, 2023"
+                        },
+                        {
+                            "name": "Mid",
+                            "value": 478,
+                            "source": "DESNZ, 2023"
+                        },
+                        {
+                            "name": "High",
+                            "value": 555,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
+                },
+                {
+                    "name": "Fuel cost",
+                    "unit": "USD/MWh",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 30,
+                            "source": "ELIS"
+                        },
+                        {
+                            "name": "High",
+                            "value": 40,
+                            "source": "ELIS"
+                        }
+                    ]
+                }
+            ],
+            "cost_assumptions": [
+                {
+                    "name": "Fixed OPEX",
+                    "unit": "2023 USD/kW/yr",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 8.93,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
+                },
+                {
+                    "name": "Variable OPEX",
+                    "unit": "2023 USD/MWh",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 1.28,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
+                },
+                {
+                    "name": "Efficiency",
+                    "unit": "%",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 35,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
+                },
+                {
+                    "name": "Lifetime",
+                    "unit": "Years",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 25,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
+                }
+            ]
+        },
         "Gas CCGT": {
             "cost_choices": [
                 {
@@ -266,56 +353,51 @@
             "cost_choices": [
                 {
                     "name": "CAPEX",
-                    "unit": "USD/kW",
+                    "unit": "2023 USD/kW",
                     "values": [
                         {
                             "name": "Low",
-                            "value": 4000,
-                            "source": "IEA"
-                        },
-                        {
-                            "name": "Mid",
-                            "value": 5500,
-                            "source": "IEA"
+                            "value": 3880,
+                            "source": "Rolls-Royce, 2025 [REF], NOAK"
                         },
                         {
                             "name": "High",
-                            "value": 7000,
-                            "source": "IEA"
+                            "value": 4850,
+                            "source": "Rolls-Royce, 2025 [REF], FOAK"
                         }
                     ]
                 },
                 {
-                    "name": "Fuel cost",
-                    "unit": "USD/MWh",
+                    "name": "Power cost",
+                    "unit": "2023 USD/MWh",
                     "values": [
                         {
                             "name": "Low",
-                            "value": 5,
-                            "source": "IEA"
+                            "value": 85,
+                            "source": "Rolls-Royce, 2025 [REF]"
                         },
                         {
                             "name": "Mid",
-                            "value": 10,
-                            "source": "IEA"
+                            "value": 106,
+                            "source": "IFP FOAK estimate, deflated from 2024 to 2023 USD"
                         },
                         {
                             "name": "High",
-                            "value": 15,
-                            "source": "IEA"
+                            "value": 175,
+                            "source": "Liebreich, 2024, based on new conventional nuclear costs deflated from 2024 to 2023 USD"
                         }
                     ]
                 }
             ],
             "cost_assumptions": [
                 {
-                    "name": "Fixed OPEX",
-                    "unit": "USD/kW/yr",
+                    "name": "Lifetime",
+                    "unit": "Years",
                     "values": [
                         {
                             "name": "Mid",
-                            "value": 120,
-                            "source": "IEA"
+                            "value": 60,
+                            "source": ""
                         }
                     ]
                 }
@@ -394,7 +476,7 @@
                     "values": [
                         {
                             "name": "Mid",
-                            "value": 43.45,
+                            "value": 38.56,
                             "source": "NREL, 2023"
                         }
                     ]
@@ -416,8 +498,8 @@
                     "values": [
                         {
                             "name": "Mid",
-                            "value": 85,
-                            "source": "NREL, 2023"
+                            "value": 87,
+                            "source": ""
                         }
                     ]
                 },

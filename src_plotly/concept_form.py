@@ -307,14 +307,14 @@ with open(CONFIG_DIR / "technology_costs.json", "r") as f:
     GENERATION_CONFIG = json.load(f)
 
 
-grid_electricity_card = GenerationInput("Grid Electricity", initial_open=True)
+# grid_electricity_card = GenerationInput("Grid Electricity", initial_open=True)
 wind_card = GenerationInput("Wind")
 solar_card = GenerationInput("Solar")
 gas_card = GenerationInput("Gas")
 smr_card = GenerationInput("SMR")
 battery_storage_card = GenerationInput("Battery Storage")
 co2_card = GenerationInput("CO2")
-generation_cards = [grid_electricity_card, solar_card, wind_card, gas_card, smr_card]
+generation_cards = [solar_card, wind_card, gas_card, smr_card]
 generation_card_ids = [card.card_id for card in generation_cards]
 # Store cards by ID for callback access (include battery storage and CO2 for callbacks)
 generation_cards_dict = {card.card_id: card for card in generation_cards}
@@ -336,7 +336,7 @@ def concept_form_layout():
                         dcc.Slider(
                             id="data-centre-capacity-slider",
                             min=10,
-                            max=100,
+                            max=120,
                             step=1,
                             value=10,
                         ),

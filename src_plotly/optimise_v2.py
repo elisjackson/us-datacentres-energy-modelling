@@ -48,7 +48,7 @@ class Generation():
 
         # search for energy cost value
         self.energy_cost = 0
-        for keyword in ["Fuel cost", "Electricity Price", "Energy cost"]:
+        for keyword in ["Fuel cost", "Electricity Price", "Energy cost", "Power cost"]:
             if keyword in costs:
                 self.energy_cost_unit = costs[keyword].get("unit", "")
                 if "/MWh" not in self.energy_cost_unit:

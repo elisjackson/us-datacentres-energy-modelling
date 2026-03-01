@@ -123,7 +123,7 @@ def _get_geo_data(filepath, color_on, country):
         onshore_only_clickable = False
     elif color_on == "ssrd":
         colorscale = "solar"
-        label = "Mean irradiation (W/m2)"
+        label = "Mean irradiation (W/m²)"
         onshore_only_clickable = True
     else:
         raise ValueError(f"Color on {color_on} not supported")
