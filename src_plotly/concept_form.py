@@ -142,7 +142,7 @@ class GenerationInput():
         """Build all cost columns for the given subtype."""
         return [self.build_cost_column(param, subtype) for param in self.cost_choice_params[subtype]]
 
-    def _create_cost_level_row(self, cost_parameter: str, level: str, value=None, is_active=False, input_disabled=False):
+    def _create_cost_level_row(self, cost_parameter: str, selected_subtype: str, level: str, value=None, is_active=False, input_disabled=False):
         """Helper to create a button + input row for a cost level."""
         if input_disabled:
             input_class = "cost-level-input input-active-disabled" if is_active else "cost-level-input input-inactive-disabled"
@@ -153,7 +153,7 @@ class GenerationInput():
             dbc.Col(
                 dbc.Button(
                     level,
-                    id={"type": "cost-level-btn", "card": self.card_id, "param": cost_parameter, "level": level},
+                    id={"type": "cost-level-btn", "card": self.card_id, "subtype": selected_subtype, "param": cost_parameter, "level": level},
                     className="cost-level-btn w-100",
                     color="primary",
                     outline=not is_active,
@@ -168,7 +168,7 @@ class GenerationInput():
                     placeholder="0" if value is not None else "Custom value",
                     disabled=input_disabled,
                     className=input_class,
-                    id={"type": "cost-value-input", "card": self.card_id, "param": cost_parameter, "level": level},
+                    id={"type": "cost-value-input", "card": self.card_id, "subtype": selected_subtype, "param": cost_parameter, "level": level},
                 ),
                 width=self.INPUT_COL_WIDTH,
             ),
@@ -203,6 +203,7 @@ class GenerationInput():
             level_rows.append(
                 self._create_cost_level_row(
                     cost_parameter=cost_parameter,
+                    selected_subtype=selected_subtype,
                     level=row_level,
                     value=row["value"],
                     is_active=(row_level == default_level),
@@ -214,6 +215,7 @@ class GenerationInput():
         level_rows.append(
             self._create_cost_level_row(
                 cost_parameter=cost_parameter,
+                selected_subtype=selected_subtype,
                 level="Custom",
                 value=None,
                 is_active=False,
@@ -585,12 +587,12 @@ def register_callbacks(app):
     
     
     @app.callback(
-        Output({"type": "cost-level-btn", "card": ALL, "param": ALL, "level": ALL}, "active"),
-        Output({"type": "cost-level-btn", "card": ALL, "param": ALL, "level": ALL}, "outline"),
-        Output({"type": "cost-value-input", "card": ALL, "param": ALL, "level": ALL}, "disabled"),
-        Output({"type": "cost-value-input", "card": ALL, "param": ALL, "level": ALL}, "className"),
-        Input({"type": "cost-level-btn", "card": ALL, "param": ALL, "level": ALL}, "n_clicks"),
-        State({"type": "cost-level-btn", "card": ALL, "param": ALL, "level": ALL}, "active"),
+        Output({"type": "cost-level-btn", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "active"),
+        Output({"type": "cost-level-btn", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "outline"),
+        Output({"type": "cost-value-input", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "disabled"),
+        Output({"type": "cost-value-input", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "className"),
+        Input({"type": "cost-level-btn", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "n_clicks"),
+        State({"type": "cost-level-btn", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "active"),
         prevent_initial_call=True,
     )
     def toggle_cost_level_buttons(n_clicks_list, current_active_states):
@@ -604,6 +606,7 @@ def register_callbacks(app):
         
         # Get which button was clicked
         clicked_card = triggered["card"]
+        clicked_subtype = triggered["subtype"]
         clicked_param = triggered["param"]
         clicked_level = triggered["level"]
         
@@ -618,8 +621,12 @@ def register_callbacks(app):
         outline_states = []
         
         for i, btn_id in enumerate(button_ids):
-            # Check if this button is in the same (card, param) group as the clicked button
-            same_group = (btn_id["card"] == clicked_card and btn_id["param"] == clicked_param)
+            # Check if this button is in the same (card, subtype, param) group as the clicked button
+            same_group = (
+                btn_id["card"] == clicked_card
+                and btn_id["subtype"] == clicked_subtype
+                and btn_id["param"] == clicked_param
+            )
             
             if same_group:
                 # Within the clicked group: only the clicked button is active
@@ -641,6 +648,7 @@ def register_callbacks(app):
                 custom_btn_active = False
                 for i, btn_id in enumerate(button_ids):
                     if (btn_id["card"] == inp_id["card"] and
+                            btn_id["subtype"] == inp_id["subtype"] and
                             btn_id["param"] == inp_id["param"] and
                             btn_id["level"] == "Custom"):
                         custom_btn_active = active_states[i]
@@ -653,6 +661,7 @@ def register_callbacks(app):
                 btn_is_active = False
                 for i, btn_id in enumerate(button_ids):
                     if (btn_id["card"] == inp_id["card"] and
+                            btn_id["subtype"] == inp_id["subtype"] and
                             btn_id["param"] == inp_id["param"] and
                             btn_id["level"] == inp_id["level"]):
                         btn_is_active = active_states[i]
@@ -731,10 +740,10 @@ def register_callbacks(app):
         State({"type": "generation-pill", "index": ALL}, "id"),
         State({"type": "subtype-pill", "card": ALL, "subtype": ALL}, "active"),
         State({"type": "subtype-pill", "card": ALL, "subtype": ALL}, "id"),
-        State({"type": "cost-level-btn", "card": ALL, "param": ALL, "level": ALL}, "active"),
-        State({"type": "cost-level-btn", "card": ALL, "param": ALL, "level": ALL}, "id"),
-        State({"type": "cost-value-input", "card": ALL, "param": ALL, "level": ALL}, "value"),
-        State({"type": "cost-value-input", "card": ALL, "param": ALL, "level": ALL}, "id"),
+        State({"type": "cost-level-btn", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "active"),
+        State({"type": "cost-level-btn", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "id"),
+        State({"type": "cost-value-input", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "value"),
+        State({"type": "cost-value-input", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "id"),
         State({"type": "storage-toggle", "index": "storage-toggle"}, "value"),
         State({"type": "co2-toggle", "index": "co2-toggle"}, "value"),
         State("pv-latlon-store", "data"),
@@ -804,13 +813,18 @@ def register_callbacks(app):
             costs = {}
             # Find which cost level button is active for each cost parameter
             for i, (active, btn_id) in enumerate(zip(cost_btn_active, cost_btn_ids)):
-                if btn_id["card"] == card_id and active:
+                if (
+                    btn_id["card"] == card_id
+                    and btn_id["subtype"] == selected_subtype
+                    and active
+                ):
                     param = btn_id["param"]
                     level = btn_id["level"]
                     
                     # Get the corresponding input value
                     for j, inp_id in enumerate(cost_input_ids):
                         if (inp_id["card"] == card_id and 
+                            inp_id["subtype"] == selected_subtype and
                             inp_id["param"] == param and 
                             inp_id["level"] == level):
                             value = cost_input_values[j]
@@ -861,12 +875,17 @@ def register_callbacks(app):
             # Extract costs
             costs = {}
             for i, (active, btn_id) in enumerate(zip(cost_btn_active, cost_btn_ids)):
-                if btn_id["card"] == card_id and active:
+                if (
+                    btn_id["card"] == card_id
+                    and btn_id["subtype"] == selected_subtype
+                    and active
+                ):
                     param = btn_id["param"]
                     level = btn_id["level"]
                     
                     for j, inp_id in enumerate(cost_input_ids):
                         if (inp_id["card"] == card_id and 
+                            inp_id["subtype"] == selected_subtype and
                             inp_id["param"] == param and 
                             inp_id["level"] == level):
                             value = cost_input_values[j]
@@ -910,12 +929,17 @@ def register_callbacks(app):
             # Extract costs
             costs = {}
             for i, (active, btn_id) in enumerate(zip(cost_btn_active, cost_btn_ids)):
-                if btn_id["card"] == card_id and active:
+                if (
+                    btn_id["card"] == card_id
+                    and btn_id["subtype"] == selected_subtype
+                    and active
+                ):
                     param = btn_id["param"]
                     level = btn_id["level"]
                     
                     for j, inp_id in enumerate(cost_input_ids):
                         if (inp_id["card"] == card_id and 
+                            inp_id["subtype"] == selected_subtype and
                             inp_id["param"] == param and 
                             inp_id["level"] == level):
                             value = cost_input_values[j]
