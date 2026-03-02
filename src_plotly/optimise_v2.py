@@ -354,7 +354,7 @@ def pypsa_model(
         print("Opex_v: ", gen.opex_v)
         print("Energy cost: ", gen.energy_cost)
         print()
-        marginal_cost = gen.opex_v + gen.energy_cost
+        marginal_cost = gen.opex_v + (gen.energy_cost / gen.efficiency)
         if gen.carrier == "gas":
             # co2_price: USD/tCO2
             # gas_co2_emissions: tCO2/MWh primary energy
