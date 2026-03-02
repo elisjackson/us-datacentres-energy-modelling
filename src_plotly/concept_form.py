@@ -4,6 +4,7 @@ import logging
 import pandas as pd
 from dash import Input, Output, State, html, dcc, ctx, no_update
 from dash.dependencies import ALL, MATCH
+from dash.exceptions import PreventUpdate
 from pathlib import Path
 from typing import List, Literal
 
@@ -138,9 +139,13 @@ class GenerationInput():
                     })
         return pd.DataFrame(rows)
 
-    def build_all_cost_columns(self, subtype: str) -> List[dbc.Row]:
+    def build_all_cost_columns(self, subtype: str, saved_selections=None) -> List[dbc.Row]:
         """Build all cost columns for the given subtype."""
-        return [self.build_cost_column(param, subtype) for param in self.cost_choice_params[subtype]]
+        saved_selections = saved_selections or {}
+        return [
+            self.build_cost_column(param, subtype, saved_selections.get(param))
+            for param in self.cost_choice_params[subtype]
+        ]
 
     def _create_cost_level_row(self, cost_parameter: str, selected_subtype: str, level: str, value=None, is_active=False, input_disabled=False):
         """Helper to create a button + input row for a cost level."""
@@ -174,7 +179,7 @@ class GenerationInput():
             ),
         ], className="g-0 cost-level-row")
     
-    def build_cost_column(self, cost_parameter: str, selected_subtype: str):
+    def build_cost_column(self, cost_parameter: str, selected_subtype: str, saved_selection=None):
         """
         Build one cost column, filtered by subtype and cost parameter.
 
@@ -196,6 +201,12 @@ class GenerationInput():
         if default_level is None and not df.empty:
             default_level = df.iloc[0]["level"]
 
+        available_levels = set(df["level"].tolist())
+        available_levels.add("Custom")
+        saved_level = (saved_selection or {}).get("level")
+        active_level = saved_level if saved_level in available_levels else default_level
+        saved_custom_value = (saved_selection or {}).get("custom_value")
+
         # Build a row for each cost level.
         level_rows = []
         for _, row in df.iterrows():
@@ -206,7 +217,7 @@ class GenerationInput():
                     selected_subtype=selected_subtype,
                     level=row_level,
                     value=row["value"],
-                    is_active=(row_level == default_level),
+                    is_active=(row_level == active_level),
                     input_disabled=True  # Pre-defined values are read-only
                 )
             )
@@ -217,9 +228,9 @@ class GenerationInput():
                 cost_parameter=cost_parameter,
                 selected_subtype=selected_subtype,
                 level="Custom",
-                value=None,
-                is_active=False,
-                input_disabled=True  # Starts disabled; callback enables when Custom button clicked
+                value=saved_custom_value,
+                is_active=(active_level == "Custom"),
+                input_disabled=(active_level != "Custom")  # Enable when Custom is selected
             )
         )
         
@@ -362,8 +373,8 @@ def concept_form_layout():
                                         card.title,
                                         id={"type": "generation-pill", "index": card.card_id},
                                         color="primary",
-                                        outline=(card != grid_electricity_card),
-                                        active=(card == grid_electricity_card),
+                                        outline=(card != wind_card),
+                                        active=(card == wind_card),
                                         className="rounded-pill me-2 px-3",
                                     )
                                     for card in generation_cards
@@ -414,7 +425,7 @@ def concept_form_layout():
                             width=12,
                         ),
                         id={"type": "generation-card-col", "index": card.card_id},
-                        className="card-container-animated " + ("card-visible" if card == grid_electricity_card else "card-hidden"),
+                        className="card-container-animated " + ("card-visible" if card == wind_card else "card-hidden"),
                     )
                     for card in generation_cards
                 ],
@@ -459,6 +470,7 @@ def concept_form_layout():
             # Stores for optimisation workflow
             dcc.Store(id="optimiser-parameters-store"),
             dcc.Store(id="optimiser-trigger-run"),
+            dcc.Store(id="cost-selections-store", data={}),
             # Loading modal (body message is updated when infeasible)
             dbc.Modal(
                 [
@@ -515,9 +527,24 @@ def register_callbacks(app):
         Output({"type": "cost-columns-container", "card": MATCH}, "children"),
         Input({"type": "subtype-pill", "card": MATCH, "subtype": ALL}, "n_clicks"),
         State({"type": "subtype-pill", "card": MATCH, "subtype": ALL}, "id"),
+        State({"type": "subtype-pill", "card": MATCH, "subtype": ALL}, "active"),
+        State({"type": "cost-level-btn", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "active"),
+        State({"type": "cost-level-btn", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "id"),
+        State({"type": "cost-value-input", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "value"),
+        State({"type": "cost-value-input", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "id"),
+        State("cost-selections-store", "data"),
         prevent_initial_call=True,
     )
-    def toggle_subtype_pills_and_update_columns(n_clicks_list, pill_ids):
+    def toggle_subtype_pills_and_update_columns(
+        n_clicks_list,
+        pill_ids,
+        current_pill_active,
+        cost_btn_active,
+        cost_btn_ids,
+        cost_input_values,
+        cost_input_ids,
+        stored_cost_selections,
+    ):
         """Toggle subtype pills and update cost columns when a subtype is selected."""
         if not ctx.triggered_id:
             return no_update, no_update, no_update
@@ -531,13 +558,53 @@ def register_callbacks(app):
         card = generation_cards_dict.get(card_id)
         if not card:
             return no_update, no_update, no_update
+
+        stored_cost_selections = stored_cost_selections or {}
+
+        # Persist current subtype selections before switching away.
+        current_subtype = None
+        for is_active, pill in zip(current_pill_active, pill_ids):
+            if is_active:
+                current_subtype = pill["subtype"]
+                break
+
+        if current_subtype:
+            card_store = stored_cost_selections.setdefault(card_id, {})
+            current_subtype_store = card_store.setdefault(current_subtype, {})
+
+            active_by_param = {}
+            for is_active, btn_id in zip(cost_btn_active, cost_btn_ids):
+                if (
+                    is_active
+                    and btn_id["card"] == card_id
+                    and btn_id["subtype"] == current_subtype
+                ):
+                    active_by_param[btn_id["param"]] = btn_id["level"]
+
+            custom_values_by_param = {}
+            for value, inp_id in zip(cost_input_values, cost_input_ids):
+                if (
+                    inp_id["card"] == card_id
+                    and inp_id["subtype"] == current_subtype
+                    and inp_id["level"] == "Custom"
+                ):
+                    custom_values_by_param[inp_id["param"]] = value
+
+            for param, level in active_by_param.items():
+                current_subtype_store[param] = {
+                    "level": level,
+                    "custom_value": custom_values_by_param.get(param),
+                }
         
         # Update active states: only clicked pill is active
         active_states = [pill["subtype"] == selected_subtype for pill in pill_ids]
         outline_states = [not active for active in active_states]
         
         # Rebuild cost columns for the new subtype
-        cost_columns = card.build_all_cost_columns(selected_subtype)
+        selected_store = (
+            stored_cost_selections.get(card_id, {}).get(selected_subtype, {})
+        )
+        cost_columns = card.build_all_cost_columns(selected_subtype, selected_store)
         
         # Add the additional assumptions column for this subtype (if it exists)
         if card.has_cost_assumptions:
@@ -591,18 +658,34 @@ def register_callbacks(app):
         Output({"type": "cost-level-btn", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "outline"),
         Output({"type": "cost-value-input", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "disabled"),
         Output({"type": "cost-value-input", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "className"),
+        Output("cost-selections-store", "data"),
         Input({"type": "cost-level-btn", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "n_clicks"),
         State({"type": "cost-level-btn", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "active"),
+        State({"type": "cost-value-input", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "value"),
+        State({"type": "cost-value-input", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "id"),
+        State("cost-selections-store", "data"),
         prevent_initial_call=True,
     )
-    def toggle_cost_level_buttons(n_clicks_list, current_active_states):
+    def toggle_cost_level_buttons(
+        n_clicks_list,
+        current_active_states,
+        cost_input_values,
+        cost_input_ids,
+        stored_cost_selections,
+    ):
         """Make only the clicked button active within its cost parameter group (like radio buttons).
         Also enable Custom input only when Custom button is selected."""
         from dash import callback_context
         
         triggered = ctx.triggered_id
-        if not triggered:
-            return no_update, no_update, no_update, no_update
+        if not isinstance(triggered, dict):
+            raise PreventUpdate
+
+        # Ignore mount/re-render events where no button was actually clicked.
+        triggered_prop = callback_context.triggered[0] if callback_context.triggered else None
+        triggered_clicks = triggered_prop.get("value") if triggered_prop else None
+        if not triggered_clicks:
+            raise PreventUpdate
         
         # Get which button was clicked
         clicked_card = triggered["card"]
@@ -669,7 +752,27 @@ def register_callbacks(app):
                 input_disabled_states.append(True)
                 input_classes.append("cost-level-input input-active-disabled" if btn_is_active else "cost-level-input input-inactive-disabled")
 
-        return active_states, outline_states, input_disabled_states, input_classes
+        stored_cost_selections = stored_cost_selections or {}
+        card_store = stored_cost_selections.setdefault(clicked_card, {})
+        subtype_store = card_store.setdefault(clicked_subtype, {})
+
+        custom_value = None
+        for value, inp_id in zip(cost_input_values, cost_input_ids):
+            if (
+                inp_id["card"] == clicked_card
+                and inp_id["subtype"] == clicked_subtype
+                and inp_id["param"] == clicked_param
+                and inp_id["level"] == "Custom"
+            ):
+                custom_value = value
+                break
+
+        subtype_store[clicked_param] = {
+            "level": clicked_level,
+            "custom_value": custom_value,
+        }
+
+        return active_states, outline_states, input_disabled_states, input_classes, stored_cost_selections
     
     
     @app.callback(
@@ -770,6 +873,32 @@ def register_callbacks(app):
         
         if trigger is None:
             return no_update, no_update, no_update, no_update
+
+        # TODO - remove fallback when ready
+        # TODO - add validation that these are included
+        # Fallback map coordinates so optimiser can run without selected map points.
+        uk_centre_location = {"lat": 54.5, "lon": -3.0}
+        default_pv_location = dict(uk_centre_location)
+        default_wind_location = {**uk_centre_location, "onshore": True}
+
+        pv_location = (
+            pv_latlon
+            if isinstance(pv_latlon, dict)
+            and "lat" in pv_latlon
+            and "lon" in pv_latlon
+            else default_pv_location
+        )
+        wind_location = (
+            {
+                "lat": wind_latlon["lat"],
+                "lon": wind_latlon["lon"],
+                "onshore": bool(wind_latlon.get("onshore", True)),
+            }
+            if isinstance(wind_latlon, dict)
+            and "lat" in wind_latlon
+            and "lon" in wind_latlon
+            else default_wind_location
+        )
         
         # Build the parameters dictionary
         parameters = {
@@ -862,9 +991,9 @@ def register_callbacks(app):
 
             # if type is solar or wind, add location information
             if gen_type == "Solar":
-                parameters['generation'][gen_type]['location'] = pv_latlon
+                parameters['generation'][gen_type]['location'] = pv_location
             elif gen_type == "Wind":
-                parameters['generation'][gen_type]['location'] = wind_latlon
+                parameters['generation'][gen_type]['location'] = wind_location
         
         # Extract Battery Storage parameters if enabled
         if storage_enabled:
