@@ -444,7 +444,7 @@
             ]
         }
     },
-    "Battery Storage": {
+    "Battery storage": {
         "Battery": {
             "cost_choices": [
                 {
@@ -517,11 +517,11 @@
             ]
         }
     },
-    "CO2": {
-        "Carbon Price": {
+    "Carbon price": {
+        "Carbon price": {
             "cost_choices": [
                 {
-                    "name": "Carbon Price",
+                    "name": "Carbon price",
                     "unit": "USD/tCO2",
                     "values": [
                         {
