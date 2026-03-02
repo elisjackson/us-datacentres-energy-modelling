@@ -50,6 +50,40 @@ def _get_technology_color(technology_name: str) -> str:
     normalized_name = _normalize_technology_key(technology_name)
     return TECHNOLOGY_COLORS.get(normalized_name, FALLBACK_TECH_COLOR)
 
+
+def _adjust_hex_color(hex_color: str, amount: float) -> str:
+    """
+    Lighten/darken a hex colour by blending toward white/black.
+    amount in [-1, 1]: positive -> lighter, negative -> darker.
+    """
+    if not isinstance(hex_color, str):
+        return FALLBACK_TECH_COLOR
+
+    color = hex_color.strip().lstrip("#")
+    if len(color) != 6:
+        return hex_color
+
+    try:
+        r = int(color[0:2], 16)
+        g = int(color[2:4], 16)
+        b = int(color[4:6], 16)
+    except ValueError:
+        return hex_color
+
+    amount = max(-1.0, min(1.0, amount))
+    if amount >= 0:
+        r = round(r + (255 - r) * amount)
+        g = round(g + (255 - g) * amount)
+        b = round(b + (255 - b) * amount)
+    else:
+        factor = 1 + amount
+        r = round(r * factor)
+        g = round(g * factor)
+        b = round(b * factor)
+
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
 def _fig_layout(xaxis_title: str, yaxis_title: str, show_placeholder=False):
     """Layout matching wind profile: dark theme, transparent background, same fonts/grid."""
     layout = dict(
@@ -108,7 +142,7 @@ def create_timeseries_plot(timeseries: dict = None):
     start_datetime = datetime(2025, 1, 1)
 
     x_axis_title = "Time"
-    y_axis_title = "Generation (MW)"
+    y_axis_title = "Generation / Storage Power (MW)"
 
     if timeseries is None or not timeseries:
         fig.update_layout(**_fig_layout(
@@ -233,11 +267,6 @@ def create_costs_graph(costs: dict = None):
     Create a grouped bar chart of costs: one group CAPEX, one group Marginal.
     costs must be {"capex": {carrier: value, ...}, "marginal": {carrier: value, ...}}.
     """
-    # TODO - multiply by lifetime
-    # TODO - un-annualise
-    # TODO - check results
-    # TODO - add OPEX
-    # TODO - add CO₂ cost
     fig = go.Figure()
 
     x_axis_title = "Generator / storage"
@@ -257,7 +286,7 @@ def create_costs_graph(costs: dict = None):
     opex = costs.get("opex") or {}
     energy_cost = costs.get("energy_cost") or {}
     co2_cost = costs.get("co2_cost") or {}
-    carriers = sorted(set(capex) | set(energy_cost))
+    carriers = list(capex.keys())
 
     if not carriers:
         fig.update_layout(
@@ -269,20 +298,28 @@ def create_costs_graph(costs: dict = None):
         )
         return fig
 
+    stack_shades = {
+        "capex": -0.5,
+        "opex": -0.2,
+        "energy_cost": 0.2,
+        "co2_cost": 0.5,
+    }
+    base_colors = {carrier: _get_technology_color(carrier) for carrier in carriers}
+
     fig.add_trace(
         go.Bar(
             x=carriers,
             y=[capex.get(c, 0) for c in carriers],
             name="CAPEX",
-            marker=dict(color="#78b4a0"),
-        )
-    )
-    fig.add_trace(
-        go.Bar(
-            x=carriers,
-            y=[co2_cost.get(c, 0) for c in carriers],
-            name="CO₂ cost",
-            marker=dict(color="#e0a86a"),
+            marker=dict(
+                color=[
+                    _adjust_hex_color(base_colors[c], stack_shades["capex"])
+                    for c in carriers
+                ],
+                pattern=dict(
+                    shape="x"
+                )
+            ),
         )
     )
     fig.add_trace(
@@ -290,7 +327,15 @@ def create_costs_graph(costs: dict = None):
             x=carriers,
             y=[opex.get(c, 0) for c in carriers],
             name="OPEX",
-            marker=dict(color="#1f77b4"),
+            marker=dict(
+                color=[
+                    _adjust_hex_color(base_colors[c], stack_shades["opex"])
+                    for c in carriers
+                ],
+                pattern=dict(
+                    shape="."
+                )
+            ),
         )
     )
     fig.add_trace(
@@ -298,23 +343,40 @@ def create_costs_graph(costs: dict = None):
             x=carriers,
             y=[energy_cost.get(c, 0) for c in carriers],
             name="Energy cost",
-            marker=dict(color="#ff7f0e"),
+            marker=dict(
+                color=[
+                    _adjust_hex_color(base_colors[c], stack_shades["energy_cost"])
+                    for c in carriers
+                ]
+            ),
         )
     )
+    fig.add_trace(
+        go.Bar(
+            x=carriers,
+            y=[co2_cost.get(c, 0) for c in carriers],
+            name="CO₂ cost",
+            marker=dict(
+                color=[
+                    _adjust_hex_color(base_colors[c], stack_shades["co2_cost"])
+                    for c in carriers
+                ]
+            ),
+        )
+    )
+
     fig.update_layout(
         **_fig_layout(
             xaxis_title=x_axis_title,
             yaxis_title=y_axis_title,
             show_placeholder=False,
         ),
-        barmode="group",
+        barmode="stack",
         legend=dict(
             font=dict(color="#e0e0e0"),
-            orientation="h",
             yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1,
+            xanchor="left",
+            y=0,
         ),
     )
     return fig

@@ -210,7 +210,7 @@ def build_optimiser_results(load, network, generation_instances, storage_instanc
     gen_stats_df["total_energy_cost"] = (
         gen_stats_df["energy_cost"] * gen_stats_df["annual_generation"] / gen_stats_df["efficiency"]
         )
-    gen_stats_df["total_opex_v"] = gen_stats_df["opex_v"] * gen_stats_df["p_nom_opt"]
+    gen_stats_df["total_opex_v"] = gen_stats_df["opex_v"] * gen_stats_df["annual_generation"]
     gen_stats_df["total_opex"] = gen_stats_df["total_opex_f"] + gen_stats_df["total_opex_v"]
     # Calculate CO2 emissions and cost
     gen_stats_df = pd.merge(
@@ -291,13 +291,13 @@ def main(data: dict):
     storage = data.get("battery_storage", {})
     storage_enabled = storage["enabled"]
     if storage_enabled:
-        storage_instances = [Storage("battery_storage", storage)]
+        storage_instances = [Storage("Battery storage", storage)]
     else:
         storage_instances = []
 
     co2_price = (
         (
-            (data.get("co2") or {}).get("costs") or {}).get("Carbon Price") or {}
+            (data.get("co2") or {}).get("costs") or {}).get("Carbon price") or {}
         ).get("value", 0.0)
 
     network = pypsa_model(

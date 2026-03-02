@@ -325,8 +325,8 @@ wind_card = GenerationInput("Wind")
 solar_card = GenerationInput("Solar")
 gas_card = GenerationInput("Gas")
 smr_card = GenerationInput("SMR")
-battery_storage_card = GenerationInput("Battery Storage")
-co2_card = GenerationInput("CO2")
+battery_storage_card = GenerationInput("Battery storage")
+co2_card = GenerationInput("Carbon price")
 generation_cards = [solar_card, wind_card, gas_card, smr_card]
 generation_card_ids = [card.card_id for card in generation_cards]
 # Store cards by ID for callback access (include battery storage and CO2 for callbacks)
