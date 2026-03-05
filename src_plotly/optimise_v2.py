@@ -471,17 +471,6 @@ def pypsa_model(
     t1 = time.time()
     logger.info(f"Optimization completed in {t1 - t0:.2f} seconds")
 
-    # # Results
-    # print("=== OPTIMAL CAPACITIES ===")
-    # for gen in generators:
-    #     print(f"{gen.name} capacity: {network.generators.p_nom_opt[gen.name]:.2f} MW")
-
-    # for store in storage:
-    #     print(f"{store.name} capacity: {network.storage_units.p_nom_opt[store.name]:.2f} MW")
-
-    # print("\n=== COSTS ===")
-    # print(f"Total system cost: €{network.objective:,.2f}/year")
-
     return network
 
 
