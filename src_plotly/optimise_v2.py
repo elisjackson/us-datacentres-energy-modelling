@@ -1,10 +1,15 @@
+import functools
 import pypsa
 import pandas as pd
 import numpy as np
+import pyarrow as pa
+import pyarrow.compute as pc
+import pyarrow.dataset as pa_ds
 import json
 from pathlib import Path
 import logging
 import time
+import boto3
 
 try:
     import src_plotly.calculate_pv_profile as calculate_pv_profile
@@ -15,11 +20,70 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+MODE = "aws" # "local" or "aws"
+S3_BUCKET = "datacentres-dev-data-207662791637"
+S3 = boto3.client("s3")
+
+
+@functools.cache
+def _get_s3_lat_lon_index() -> list[tuple[float, float]]:
+    """List all available (lat, lon) coordinate pairs from the S3 ERA5 partition index.
+
+    Cached so the S3 listing is only performed once per script execution.
+    """
+    logger.info("Getting S3 lat/lon indexes")
+    print(f"Getting S3 lat/lon indexes from {S3_BUCKET}")
+    response = S3.list_objects_v2(Bucket=S3_BUCKET, Prefix="era5/")
+    objects = response.get("Contents", [])
+    coords = []
+    for obj in objects:
+        key = obj["Key"]
+        if ".parquet" not in key:
+            continue
+        lat_val = float(key.split("/")[-3].split("=")[1])
+        lon_val = float(key.split("/")[-2].split("=")[1])
+        coords.append((lat_val, lon_val))
+    return coords
+
+
+@functools.cache
+def _get_era5_data_s3(lat: float, lon: float) -> pd.DataFrame:
+    """Fetch ERA5 data for the nearest available grid point to (lat, lon) from S3.
+
+    Cached per unique (lat, lon) pair so repeated calls for the same location
+    do not trigger additional S3 reads.
+    """
+    coords = _get_s3_lat_lon_index()
+    lat_vals = np.array([c[0] for c in coords])
+    lon_vals = np.array([c[1] for c in coords])
+    distances = np.sqrt((lat_vals - lat) ** 2 + (lon_vals - lon) ** 2)
+    closest_lat, closest_lon = coords[np.argmin(distances)]
+    logger.info(f"Reading ERA5 data from S3 for nearest point ({closest_lat}, {closest_lon})")
+    dataset = pa_ds.dataset(
+        f"s3://{S3_BUCKET}/era5/",
+        format="parquet",
+        partitioning=pa_ds.partitioning(
+            pa.schema([
+                ("country", pa.string()),
+                ("lat", pa.float32()),
+                ("lon", pa.float32()),
+            ]),
+            flavor="hive",
+        ),
+    )
+    return dataset.to_table(
+        filter=(
+            (pc.field("country") == "United Kingdom")
+            & (pc.field("lat") == np.float32(closest_lat))
+            & (pc.field("lon") == np.float32(closest_lon))
+        )
+    ).to_pandas()
+
+
 class Generation():
     def __init__(self, name: str, data: dict):
         """
         """
-        # TODO - ensure all units are handled in MW
 
         self.name = name
         self.location = data.get("location", None)
@@ -57,7 +121,10 @@ class Generation():
                 break
 
         if self.name in ["Solar", "Wind"]:
-            self.pu_profile = self.get_renewable_profile()
+            self.pu_profile = self.get_renewable_profile(
+                lat=self.location["lat"],
+                lon=self.location["lon"]
+                )
         else:
             self.pu_profile = pd.DataFrame({"pu_power": np.ones(8760)})
 
@@ -70,11 +137,10 @@ class Generation():
         self.lifetime = costs.get("Lifetime", {}).get("value", 20)
 
 
-    def get_renewable_profile(self):
+    def get_renewable_profile(self, lat: float, lon: float):
 
         # read ERA5 parquet file
-        # TODO - make loading dynamic based on lat/long
-        era5_data = self.get_era5_data()
+        era5_data = self.get_era5_data(lat, lon)
 
         if self.name == "Solar":
             # get solar profile
@@ -94,13 +160,16 @@ class Generation():
                 era5_df=era5_data
                 )
 
-    def get_era5_data(self):
+    def get_era5_data(self, lat: float, lon: float):
         # read ERA5 parquet file
-        _script_dir = Path(__file__).parent
-        # go up a level to get to the data directory
-        data_dir = _script_dir.parent / "data"
-        # read ERA5 parquet file
-        era5_data = pd.read_parquet(data_dir / "processed" / "single_point_UK_2025.parquet")
+        if MODE == "local":
+            _script_dir = Path(__file__).parent
+            # go up a level to get to the data directory
+            data_dir = _script_dir.parent / "data"
+            # read ERA5 parquet file
+            era5_data = pd.read_parquet(data_dir / "processed" / "single_point_UK_2025.parquet")
+        else:
+            era5_data = _get_era5_data_s3(lat, lon)
         return era5_data
 
 
