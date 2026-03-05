@@ -10,11 +10,8 @@ import numpy as np
 from pathlib import Path
 import xarray as xr 
 import logging
-import boto3
-import s3fs
 import pyarrow as pa
 import pyarrow.dataset as pa_ds
-
 
 # Add parent directory to path so we can import meteo_data
 _script_dir = Path(__file__).parent
@@ -31,13 +28,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+S3_BUCKET = "datacentres-dev-data-207662791637"
+MODE = "aws" # "local" or "aws"
 
-def save_to_partition_s3(ds: xr.Dataset, output_path: Path, country: str) -> None:
+
+def save_to_partition_s3(ds: xr.Dataset, output_dir: Path, country: str) -> None:
     """
     Save an xarray Dataset to a partition in S3.
     """
-    # output_path = output_path.parent / f"lat-lon={lat}-{lon}/0.parquet"
-    output_dir = r"C:\Users\Elis\repos\us-datacentres\data\test"
     df = ds.to_dataframe()
     df = df[["latitude", "longitude", "ssrd", "fdir", "wind_speed_100"]]
     df.rename(columns={"latitude": "lat", "longitude": "lon"}, inplace=True)
@@ -46,6 +44,10 @@ def save_to_partition_s3(ds: xr.Dataset, output_path: Path, country: str) -> Non
     df["lon"] = df["lon"].round(4)
     # add country column
     df["country"] = country
+    if MODE == "local":
+        output_dir = r"C:\Users\Elis\repos\us-datacentres\data\test"
+    else:
+        output_dir = f"s3://{S3_BUCKET}/era5"
     pa_ds.write_dataset(
         pa.Table.from_pandas(df),
         base_dir=str(output_dir),
@@ -58,14 +60,15 @@ def save_to_partition_s3(ds: xr.Dataset, output_path: Path, country: str) -> Non
                 ]),
             flavor="hive"
         ),
+        existing_data_behavior="overwrite_or_ignore",
     )
 
 def extract_single_point(
     ds: xr.Dataset,
+    country: str,
     lat: float,
     lon: float,
     output_path: Path,
-    format: str = "parquet"
 ) -> xr.Dataset:
     """
     Extract timeseries data for a single lat/lon point from ERA5 zip file.
@@ -80,52 +83,12 @@ def extract_single_point(
     Returns:
         xarray Dataset containing single point timeseries
     """
+    logger.info(f"Extracting data for point: ({lat}, {lon})")
     # Select nearest point to requested lat/lon
     ds_point = ds.sel(latitude=lat, longitude=lon, method='nearest')
-    
-    # Get the actual selected coordinates
-    actual_lat = float(ds_point.latitude.values)
-    actual_lon = float(ds_point.longitude.values)
-    logger.info(f"Requested point: ({lat}, {lon})")
-    logger.info(f"Actual selected point: ({actual_lat}, {actual_lon})")
-    
-    # Log timeseries info
-    if 'valid_time' in ds_point.dims:
-        time_len = len(ds_point.valid_time)
-        time_start = str(ds_point.valid_time.values[0])
-        time_end = str(ds_point.valid_time.values[-1])
-        logger.info(f"Timeseries length: {time_len} timesteps")
-        logger.info(f"Time range: {time_start} to {time_end}")
-    
-    # Log data variables and their shapes
-    logger.info("Variables in extracted point:")
-    for var in ds_point.data_vars:
-        logger.info(f"  {var}: shape={ds_point[var].shape}, dtype={ds_point[var].dtype}")
-    
-    # Save to file
-    logger.info(f"Saving to: {output_path} (format: {format})")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    save_to_partition_s3(ds_point, "", "United Kingdom")
-    
-    if format == "netcdf":
-        # Save as NetCDF in zip
-        nc_filename = output_path.stem + ".nc"
-        save_dataset_to_zip(ds_point, output_path, nc_filename)
-        
-    elif format == "parquet":
-        # Convert to pandas DataFrame and save as Parquet
-        output_path = output_path.parent / f"lat-lon={lat}-{lon}/0.parquet"
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        df = ds_point.to_dataframe()
-        df = df[["ssrd", "fdir", "wind_speed_100"]]
-        df.to_parquet(output_path, engine='pyarrow')
-        logger.info(f"Saved as Parquet with {len(df)} rows and {len(df.columns)} columns")
-    
-    else:
-        raise ValueError(f"Unknown format: {format}. Choose from: netcdf, parquet, csv, json, excel")
-    
-    logger.info("Extraction complete!")
+    save_to_partition_s3(ds_point, "", country)
+
     return ds_point
 
 
@@ -163,6 +126,8 @@ if __name__ == "__main__":
     # Configuration
     data_dir = Path("data")
     input_zip = data_dir / "processed" / "by_country" / "era5_clipped" / "United Kingdom_2025.zip"
+    country = "United Kingdom"
+    s3_bucket = "us-datacentres-data"
     
     # If the above doesn't exist, try the downloads directory
     if not input_zip.exists():
@@ -184,28 +149,12 @@ if __name__ == "__main__":
 
     valid_coords = get_valid_coords(ds)
 
-    for lat, lon in valid_coords:
+    for lat, lon in valid_coords[:4]:
         ds_point = extract_single_point(
             ds=ds,
+            country=country,
             lat=lat,
             lon=lon,
             output_path=output_file,
-            format="parquet"
         )
     
-    
-    # Extract the point
-    ds_point = extract_single_point(
-        zip_path=input_zip,
-        lat=latitude,
-        lon=longitude,
-        output_path=output_file,
-        format="parquet"
-    )
-    
-    # Optional: Print sample of data
-    logger.info("\nSample data (first few timesteps):")
-    df_sample = ds_point.to_dataframe()
-    logger.info(f"\n{df_sample.head()}")
-
-
