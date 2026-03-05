@@ -509,8 +509,8 @@
                     "values": [
                         {
                             "name": "Mid",
-                            "value": 15,
-                            "source": "NREL, 2023"
+                            "value": 20,
+                            "source": "Ember"
                         }
                     ]
                 }
