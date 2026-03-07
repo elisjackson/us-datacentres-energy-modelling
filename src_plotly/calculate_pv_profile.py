@@ -27,6 +27,8 @@ def era5_to_ghi_dhi_dni(ssrd, fdir, timestamps, solar_position) -> pd.DataFrame:
         Total sky direct solar irradiance at surface (W/m²)
     timestamps : DatetimeIndex
         Hourly timestamps
+    solar_position : pd.DataFrame
+        Solar position data
     
     Returns:
     --------
@@ -68,35 +70,15 @@ def era5_to_ghi_dhi_dni(ssrd, fdir, timestamps, solar_position) -> pd.DataFrame:
     # Set to zero when sun is below / near horizon
     dni[solar_position['apparent_zenith'] > 87] = 0
     dni = np.maximum(dni, 0)
-    
-    irradiance['dni'] = dni
+
+    # irradiance = irradiance.reset_index(drop=True)
+    # dni = dni.reset_index(drop=True)
+    if not (irradiance.index == dni.index).all():
+        raise ValueError("Irradiance and DNI indices do not match")
+
+    irradiance["dni"] = dni
 
     return irradiance
-
-
-# def calculate_dni_from_fdir(fdir, irradiance_df, solar_position):
-#     """
-#     Calculate DNI directly from fdir (direct radiation on horizontal surface)
-    
-#     Since fdir = DNI x cos(zenith), then:
-#     DNI = fdir / cos(zenith)
-#     """
-    
-#     cos_zenith = np.cos(np.radians(solar_position['apparent_zenith']))
-    
-#     # Avoid division by zero/very small numbers when sun is near horizon
-#     cos_zenith = np.maximum(cos_zenith, 0.01)
-    
-#     # Calculate DNI directly from the direct horizontal component
-#     dni = fdir / cos_zenith
-    
-#     # Set to zero when sun is below / near horizon
-#     dni[solar_position['apparent_zenith'] > 87] = 0
-#     dni = np.maximum(dni, 0)
-    
-#     irradiance_df['dni'] = dni
-    
-#     return irradiance_df
 
 
 def get_pvgis_weather(lat: float, lon: float):
@@ -194,8 +176,11 @@ def prepare_era5_data(era5_df: pd.DataFrame, site: location.Location) -> pd.Data
     print(f"  Expected mean GHI for UK: ~50-100 W/m²")
     print(f"  Expected max GHI for UK: ~800-1000 W/m²")
 
-    # Get timestamps from the index
-    timestamps = era5_df.index
+    era5_df = era5_df.reset_index(drop=True)
+    era5_df.sort_values(by="time", inplace=True)
+
+    # Get timestamps
+    timestamps = era5_df["time"]
     timestamps_local = timestamps
     
     # Calculate solar position for ERA5 processing
