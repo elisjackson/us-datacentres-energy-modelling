@@ -3,6 +3,7 @@ Map-related callbacks and helpers for the Dash app.
 Builds choropleth map from GeoJSON, handles country/radio updates, and click highlight.
 """
 
+import copy
 import json
 import os
 from pathlib import Path
@@ -130,7 +131,10 @@ def _get_geo_data(filepath, color_on, country):
 
     cache_key = (filepath, color_on)
     if cache_key in _geo_cache:
-        return _geo_cache[cache_key]
+        cached = _geo_cache[cache_key]
+        if "base_figure_dict" not in cached:
+            cached["base_figure_dict"] = cached["base_figure"].to_dict()
+        return cached
 
     gdf = _get_gdf_data(country)
     gdf = gdf.reset_index(names="id")
@@ -221,11 +225,13 @@ def _get_geo_data(filepath, color_on, country):
         )
         base_fig.add_trace(offshore_trace)
 
+    base_figure_dict = base_fig.to_dict()
     _geo_cache[cache_key] = {
         "geojson": geojson,
         "df": df,
         "center": center,
         "base_figure": base_fig,
+        "base_figure_dict": base_figure_dict,
     }
     return _geo_cache[cache_key]
 
@@ -265,8 +271,61 @@ def _add_highlight_trace(fig, geojson, selected_id, z_value, zmin, zmax, color_o
     fig.add_trace(highlight_trace)
 
 
+def _add_highlight_trace_to_fig_dict(fig_dict, geojson, selected_id, z_value, zmin, zmax, color_on):
+    """Append a highlight trace dict to fig_dict['data']. Mutates fig_dict in place."""
+    if not geojson or "features" not in geojson:
+        return
+    features = geojson["features"]
+    feature = None
+    if isinstance(selected_id, int) and 0 <= selected_id < len(features):
+        feature = features[selected_id]
+    else:
+        for f in features:
+            if f.get("id") == selected_id:
+                feature = f
+                break
+    if feature is None:
+        return
+    highlight_geojson = {"type": geojson["type"], "features": [copy.deepcopy(feature)]}
+    wind_color = "rgba(120,180,160,0.5)"
+    pv_color = "rgba(255,180,80,0.5)"
+    highlight_color = pv_color if color_on == "ssrd" else wind_color
+    trace_dict = {
+        "type": "choroplethmap",
+        "geojson": highlight_geojson,
+        "locations": [selected_id],
+        "z": [z_value],
+        "featureidkey": "id",
+        "colorscale": [[0, highlight_color], [1, highlight_color]],
+        "zmin": zmin,
+        "zmax": zmax,
+        "showscale": False,
+        "hoverinfo": "skip",
+        "marker": {"opacity": 1, "line": {"width": 1, "color": "#282828"}},
+        "name": "map_highlight",
+    }
+    fig_dict.setdefault("data", []).append(trace_dict)
+
+
+def _apply_relayout_to_fig_dict(fig_dict, relayout_data, country_changed):
+    """Apply center/zoom from relayout_data to a figure dict. Returns a new dict (does not mutate input)."""
+    if country_changed or not relayout_data:
+        return copy.deepcopy(fig_dict)
+    # Shallow copy top level; deep-copy only layout so we don't copy heavy trace data (GeoJSON).
+    out = dict(fig_dict)
+    out["layout"] = copy.deepcopy(fig_dict.get("layout", {}))
+    layout = out["layout"]
+    for subplot in ("mapbox", "geo", "map"):
+        center = relayout_data.get(f"{subplot}.center")
+        zoom = relayout_data.get(f"{subplot}.zoom")
+        if center is not None and zoom is not None:
+            layout.setdefault(subplot, {}).update(center=center, zoom=zoom)
+            return out
+    return out
+
+
 def make_base_figure(radio_selection, country, geo_data=None):
-    """Base choropleth only (no highlight). Returns (figure, max_wind_speed, geo_data) from the map data."""
+    """Resolve geo_data and max_wind_speed for the current radio/country. Returns (geo_data, max_wind_speed)."""
     if country == "United Kingdom":
         filepath = DATA_DIR / f"map_{country}_2025.geojson"
     elif country == "United States":
@@ -282,10 +341,20 @@ def make_base_figure(radio_selection, country, geo_data=None):
         raise ValueError(f"Radio selection {radio_selection} not supported")
 
     geo_data = geo_data or _get_geo_data(filepath, color_on, country)
-    base_fig = geo_data["base_figure"]
     geo_wind = _get_geo_data(filepath, "wind_speed_100", country)
     max_wind_speed = float(geo_wind["df"]["wind_speed_100"].max())
-    return go.Figure(base_fig), max_wind_speed
+    return geo_data, max_wind_speed
+
+
+def prewarm_geo_cache():
+    """Load and cache geo data for all (country, metric) combinations at startup so the first user gets a hot cache."""
+    for country in ["United Kingdom"]:
+        if country == "United Kingdom":
+            filepath = str(DATA_DIR / f"map_{country}_2025.geojson")
+        else:
+            filepath = str(DATA_DIR / f"map_{country}_2025_01_01.geojson")
+        for color_on in ("wind_speed_100", "ssrd"):
+            _get_geo_data(filepath, color_on, country)
 
 
 def register_callbacks(app):
@@ -311,25 +380,42 @@ def register_callbacks(app):
     def update_map_and_store(
         radio_selection,
         # country,
-        relayout_data, 
+        relayout_data,
         last_country,
         pv_click,
         wind_click,
     ):
         """Build base figure when country/radio change; preserve zoom/center when only layer changes."""
         country = "United Kingdom"
-        fig, max_wind = make_base_figure(radio_selection, country)
+        geo_data, max_wind = make_base_figure(radio_selection, country)
         country_changed = (last_country is None) or (country != last_country)
+        pv_out, wind_out = pv_click, wind_click
+        if country_changed:
+            pv_out, wind_out = None, None
+
+        def _need_highlight():
+            for stored_click in (pv_click, wind_click):
+                if stored_click and stored_click.get("points"):
+                    pt = stored_click["points"][0]
+                    if pt.get("curveNumber") != 1:
+                        return True
+            return False
+
+        if not _need_highlight():
+            out_dict = _apply_relayout_to_fig_dict(
+                geo_data["base_figure_dict"], relayout_data, country_changed
+            )
+            return out_dict, out_dict, max_wind, country, pv_out, wind_out
+
+        out_dict = copy.deepcopy(geo_data["base_figure_dict"])
         if not country_changed and relayout_data:
+            layout = out_dict.setdefault("layout", {})
             for subplot in ("mapbox", "geo", "map"):
                 center = relayout_data.get(f"{subplot}.center")
                 zoom = relayout_data.get(f"{subplot}.zoom")
                 if center is not None and zoom is not None:
-                    fig.update_layout(**{subplot: dict(center=center, zoom=zoom)})
+                    layout.setdefault(subplot, {}).update(center=center, zoom=zoom)
                     break
-        pv_out, wind_out = pv_click, wind_click
-        if country_changed:
-            pv_out, wind_out = None, None
         filepath = str(DATA_DIR / f"map_{country}_2025.geojson")
         if country == "United States":
             filepath = str(DATA_DIR / f"map_{country}_2025_01_01.geojson")
@@ -347,12 +433,12 @@ def register_callbacks(app):
                         z_val = pt.get("z", 0) or 0
                         zmin = float(gdata["df"][color_on].min())
                         zmax = float(gdata["df"][color_on].max())
-                        _add_highlight_trace(
-                            fig, gdata["geojson"], loc, z_val, zmin, zmax, color_on
+                        _add_highlight_trace_to_fig_dict(
+                            out_dict, gdata["geojson"], loc, z_val, zmin, zmax, color_on
                         )
                     except (KeyError, TypeError, ValueError):
                         pass
-        return fig, fig.to_dict(), max_wind, country, pv_out, wind_out
+        return out_dict, out_dict, max_wind, country, pv_out, wind_out
 
     app.clientside_callback(
         """

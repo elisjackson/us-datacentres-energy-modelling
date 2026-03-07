@@ -17,6 +17,7 @@ external_stylesheets = [
 ]
 app = Dash(__name__, external_stylesheets=external_stylesheets)
 map_callbacks.register_callbacks(app)
+map_callbacks.prewarm_geo_cache()
 wind_profile.register_callbacks(app)
 solar_data_table.register_callbacks(app)
 concept_form.register_callbacks(app)
@@ -226,4 +227,4 @@ app.layout = dbc.Container(
 
 if __name__ == "__main__":
     # Local: run from repo root with python -m src_plotly.main (so src_plotly imports work)
-    app.run(debug=True)
+    app.run(debug=False)
