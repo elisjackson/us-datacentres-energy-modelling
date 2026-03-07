@@ -301,7 +301,7 @@ def register_callbacks(app):
             Output("wind-click-store", "data", allow_duplicate=True),
         ],
         Input("radioitems-input", "value"),
-        Input("country-dropdown", "value"),
+        # Input("country-dropdown", "value"),
         State("map", "relayoutData"),
         State("last-country-store", "data"),
         State("pv-click-store", "data"),
@@ -309,9 +309,15 @@ def register_callbacks(app):
         prevent_initial_call="initial_duplicate",
     )
     def update_map_and_store(
-        radio_selection, country, relayout_data, last_country, pv_click, wind_click
+        radio_selection,
+        # country,
+        relayout_data, 
+        last_country,
+        pv_click,
+        wind_click,
     ):
         """Build base figure when country/radio change; preserve zoom/center when only layer changes."""
+        country = "United Kingdom"
         fig, max_wind = make_base_figure(radio_selection, country)
         country_changed = (last_country is None) or (country != last_country)
         if not country_changed and relayout_data:
@@ -426,10 +432,11 @@ def register_callbacks(app):
     @app.callback(
         Output("pv-location-data", "data"),
         Input("pv-click-store", "data"),
-        State("country-dropdown", "value"),
+        # State("country-dropdown", "value"),
     )
-    def store_pv_location_data(pv_click, country):
+    def store_pv_location_data(pv_click):
         """Store all GDF columns for the selected PV location."""
+        country = "United Kingdom"
         if not pv_click or not country:
             return None
         gdf = _get_gdf_data(country).reset_index(names="id")
@@ -438,10 +445,11 @@ def register_callbacks(app):
     @app.callback(
         Output("wind-location-data", "data"),
         Input("wind-click-store", "data"),
-        State("country-dropdown", "value"),
+        # State("country-dropdown", "value"),
     )
-    def store_wind_location_data(wind_click, country):
+    def store_wind_location_data(wind_click):
         """Store all GDF columns for the selected Wind location."""
+        country = "United Kingdom"
         if not wind_click or not country:
             return None
         gdf = _get_gdf_data(country).reset_index(names="id")
