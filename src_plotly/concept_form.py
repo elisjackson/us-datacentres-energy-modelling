@@ -13,6 +13,9 @@ import src_plotly.optimise_v2 as optimise_v2
 DIR = Path(__file__).parent
 CONFIG_DIR = DIR / "config"
 
+# Fallback map coordinates when no solar/wind location is selected (used by optimiser and modal warning).
+DEFAULT_MAP_LOCATION = {"lat": 51.2068, "lon": -3.1424}
+
 class GenerationInput():
     """
     A collapsible card for a generation type.
@@ -824,11 +827,62 @@ def register_callbacks(app):
         Output("optimiser-trigger-run", "data"),
         Output("optimiser-loading-modal-message", "children"),
         Input("optimise-button", "n_clicks"),
+        State("pv-latlon-store", "data"),
+        State("wind-latlon-store", "data"),
+        State({"type": "generation-pill", "index": ALL}, "active"),
+        State({"type": "generation-pill", "index": ALL}, "id"),
         prevent_initial_call=True,
     )
-    def open_loading_modal(n_clicks):
-        """Open loading modal when Optimise button is clicked."""
-        return True, n_clicks, _loading_modal_default
+    def open_loading_modal(n_clicks, pv_latlon, wind_latlon, gen_pill_active, gen_pill_ids):
+        """Open loading modal when Optimise button is clicked. Show warning if default location is used for Solar/Wind."""
+        valid_pv = (
+            isinstance(pv_latlon, dict)
+            and "lat" in pv_latlon
+            and "lon" in pv_latlon
+        )
+        valid_wind = (
+            isinstance(wind_latlon, dict)
+            and "lat" in wind_latlon
+            and "lon" in wind_latlon
+        )
+        solar_active = any(
+            active and pid["index"] == solar_card.card_id
+            for active, pid in zip(gen_pill_active or [], gen_pill_ids or [])
+        )
+        wind_active = any(
+            active and pid["index"] == wind_card.card_id
+            for active, pid in zip(gen_pill_active or [], gen_pill_ids or [])
+        )
+        use_default_solar = solar_active and not valid_pv
+        use_default_wind = wind_active and not valid_wind
+
+        default_loc_str = f"{DEFAULT_MAP_LOCATION['lat']}°N, {DEFAULT_MAP_LOCATION['lon']}°W"
+        warning_text = "No map location selected. Using a default location "
+        if use_default_solar and use_default_wind:
+            warning_text += f"({default_loc_str}) for Solar and Wind."
+        elif use_default_solar:
+            warning_text += f"({default_loc_str}) for Solar."
+        elif use_default_wind:
+            warning_text += f"({default_loc_str}) for Wind."
+        else:
+            warning_text = None
+
+        if warning_text:
+            warning_text += " There might be some spare grid capacity here for a few years..."
+            message_children = html.Div(
+                [
+                    html.Div(warning_text, className="text-warning mb-2"),
+                    html.Div(
+                        _loading_modal_default,
+                        className="d-flex align-items-center",
+                    ),
+                ],
+                className="d-flex flex-column",
+            )
+        else:
+            message_children = _loading_modal_default
+
+        return True, n_clicks, message_children
     
     
     @app.callback(
@@ -881,9 +935,8 @@ def register_callbacks(app):
         # TODO - remove fallback when ready
         # TODO - add validation that these are included
         # Fallback map coordinates so optimiser can run without selected map points.
-        uk_centre_location = {"lat": 54.5, "lon": -3.0}
-        default_pv_location = dict(uk_centre_location)
-        default_wind_location = {**uk_centre_location, "onshore": True}
+        default_pv_location = dict(DEFAULT_MAP_LOCATION)
+        default_wind_location = {**DEFAULT_MAP_LOCATION, "onshore": True}
 
         pv_location = (
             pv_latlon
