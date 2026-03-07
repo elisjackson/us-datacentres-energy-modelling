@@ -79,7 +79,7 @@ def make_empty_wind_profile_figure():
     return fig
 
 
-def make_wind_profile_figure(heights, wind_speeds, x_max=None, hub_height=None):
+def make_wind_profile_figure(heights, wind_speeds, x_max=None, era5_wind_height=None, hub_height=150):
     """
     Build a Plotly figure for wind profile (no .show()); for use in Dash.
     If x_max is set, x-axis range is fixed to [0, x_max].
@@ -104,7 +104,7 @@ def make_wind_profile_figure(heights, wind_speeds, x_max=None, hub_height=None):
     )
     if x_max is not None:
         xaxis["range"] = [0, x_max]
-    layout_kw = dict(
+    layout_dict = dict(
         title="",
         xaxis_title="Wind speed (m/s)",
         yaxis_title="Height (m)",
@@ -123,33 +123,45 @@ def make_wind_profile_figure(heights, wind_speeds, x_max=None, hub_height=None):
         ),
         dragmode=False,
     )
-    if hub_height is not None and heights.size > 0 and wind_speeds.size > 0:
-        x_range_max = x_max if x_max is not None else float(np.max(wind_speeds))
-        v_hub = float(np.interp(hub_height, heights, wind_speeds))
-        layout_kw["shapes"] = [
+
+    def _add_height_at_line(layout_dict, x_range_max, annotation_height, all_heights, all_wind_speeds):
+        v_hub = float(np.interp(annotation_height, all_heights, all_wind_speeds))
+        layout_dict.setdefault("shapes", []).append(
             dict(
                 type="line",
                 x0=0,
                 x1=x_range_max,
-                y0=hub_height,
-                y1=hub_height,
+                y0=annotation_height,
+                y1=annotation_height,
                 line=dict(dash="dash", color="#e0e0e0", width=1.5),
             )
-        ]
-        layout_kw["annotations"] = [
+        )
+        layout_dict.setdefault("annotations", []).append(
             dict(
-                x=v_hub,
-                y=hub_height,
-                text=f"{v_hub:.1f} m/s at {hub_height:.0f} m",
+                x=0.5,
+                y=annotation_height,
+                xref="paper",
+                yref="y",
+                text=f"{v_hub:.1f} m/s at {annotation_height:.0f}m hub height",
                 showarrow=True,
                 arrowhead=1,
-                ax=40,
+                ax=0,
                 ay=0,
                 font=dict(color="#e0e0e0", size=11),
                 bgcolor="rgba(0,0,0,0.5)",
             )
-        ]
-    fig.update_layout(**layout_kw)
+        )
+        return layout_dict
+
+    # y-heights on which to add annotation lines and text
+    # annotation_heights = [era5_wind_height, hub_height]
+    annotation_heights = [hub_height]
+    
+    for annotation_height in annotation_heights:
+        x_range_max = x_max if x_max is not None else float(np.max(wind_speeds))
+        layout_dict = _add_height_at_line(layout_dict, x_range_max, annotation_height, heights, wind_speeds)
+
+    fig.update_layout(**layout_dict)
     return fig
 
 
@@ -161,11 +173,13 @@ def register_callbacks(app):
     @app.callback(
         Output("wind-profile-graph", "figure"),
         Input("wind-click-store", "data"),
-        Input("hub-height", "data"),
+        Input("wind-onshore-store", "data"),
+        Input("era5-wind-height", "data"),
+        Input("hub-heights", "data"),
         State("map-wind-max", "data"),
     )
-    def update_wind_profile(wind_click_data, hub_height, map_wind_max):
-        hub_height = 100 if hub_height is None else hub_height
+    def update_wind_profile(wind_click_data, wind_onshore, era5_wind_height, hub_heights, map_wind_max):
+        era5_wind_height = 100 if era5_wind_height is None else era5_wind_height
         click_data = wind_click_data
         if not click_data:
             fig = make_empty_wind_profile_figure()
@@ -175,7 +189,7 @@ def register_callbacks(app):
             fig.update_layout(
                 annotations=[
                     dict(
-                        text="Click an onshore map cell",
+                        text="Click a wind map cell",
                         x=0.5,
                         y=0.5,
                         xref="paper",
@@ -191,19 +205,43 @@ def register_callbacks(app):
             v1 = 5.0 if v1 is None else float(v1)
         except (KeyError, IndexError, TypeError):
             v1 = 5.0
+
+        onshore = wind_onshore if wind_onshore is not None else True
         h1 = 100.0  # reference height (m), e.g. ERA5 100 m
-        z0 = 0.1  # roughness length (m)
+        # roughness length assumptions:
+        # onshore: 0.25 m - High crops; scattered obstacles, 15 < x/H < 20
+        # offshore: 0.0002 m - Open sea, Fetch at least 5 km
+        z0 = 0.25 if onshore else 0.0002  # roughness length (m)
+
         heights, wind_speeds = calculate_wind_profile(v1, h1, z0)
+        
         # x-axis: at least ceil(map_wind_max)+1, or ceil(max profile) so 250 m speed is never clipped
         base_max = (math.ceil(map_wind_max) + 1) if map_wind_max is not None else 11
         profile_max = math.ceil(float(np.max(wind_speeds))) if wind_speeds.size else base_max
         x_max = max(base_max, profile_max)
+        key = "onshore" if onshore else "offshore"
+        hub_height = (hub_heights or {}).get(key, 150)
         return make_wind_profile_figure(
-            heights, wind_speeds, x_max=x_max, hub_height=hub_height
+            heights, wind_speeds, x_max=x_max, era5_wind_height=era5_wind_height, hub_height=hub_height
         )
 
     @app.callback(
-        Output("hub-height", "data"),
+        Output("wind-hub-height-note", "children"),
+        Input("wind-onshore-store", "data"),
+        Input("hub-heights", "data"),
+    )
+    def update_wind_hub_height_note(wind_onshore, hub_heights):
+        """Update the text below the wind profile: e.g. '150m Onshore hub height assumed'."""
+        if wind_onshore is None:
+            return ""
+        onshore = wind_onshore if wind_onshore is not None else True
+        key = "onshore" if onshore else "offshore"
+        hub_height = (hub_heights or {}).get(key, 150)
+        location_type = "Onshore" if onshore else "Offshore"
+        return f"{int(hub_height)}m {location_type} hub height assumed"
+
+    @app.callback(
+        Output("era5-wind-height", "data"),
         Input("wind-profile-graph", "clickData"),
         prevent_initial_call=True,
     )

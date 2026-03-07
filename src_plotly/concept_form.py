@@ -851,6 +851,8 @@ def register_callbacks(app):
         State({"type": "co2-toggle", "index": "co2-toggle"}, "value"),
         State("pv-latlon-store", "data"),
         State("wind-latlon-store", "data"),
+        State("hub-heights", "data"),
+        State("wind-onshore-store", "data"),
         prevent_initial_call=True,
     )
     def collect_optimiser_parameters(
@@ -868,6 +870,8 @@ def register_callbacks(app):
         co2_enabled,
         pv_latlon,
         wind_latlon,
+        hub_heights,
+        wind_onshore,
     ):
         """Collect all form parameters and structure them for the optimiser."""
         
@@ -989,11 +993,18 @@ def register_callbacks(app):
                 'costs': costs
             }
 
-            # if type is solar or wind, add location information
+            # if type is solar or wind, add additional information
             if gen_type == "Solar":
                 parameters['generation'][gen_type]['location'] = pv_location
             elif gen_type == "Wind":
                 parameters['generation'][gen_type]['location'] = wind_location
+                onshore = wind_onshore if wind_onshore is not None else True
+                hub_heights_dict = hub_heights or {}
+                hub_height = hub_heights_dict.get("onshore", 150) if onshore else hub_heights_dict.get("offshore", 200)
+                parameters['generation'][gen_type]['costs']['Hub height'] = {
+                    'value': hub_height,
+                    'unit': 'm'
+                    }
         
         # Extract Battery Storage parameters if enabled
         if storage_enabled:

@@ -4,3 +4,5 @@
 __pycache__*
 debug_outputs*
 src/generate_hex_cell_data/downloads/*
+*.parquet
+*.zip

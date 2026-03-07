@@ -119,7 +119,7 @@ def _get_geo_data(filepath, color_on, country):
     """Load GeoJSON once per (filepath, color_on), build df, center, and base figure; cache result."""
     if color_on == "wind_speed_100":
         colorscale = "Emrld_r"
-        label = "Mean wind speed (m/s)"
+        label = "Mean 100m wind speed (m/s)"
         onshore_only_clickable = False
     elif color_on == "ssrd":
         colorscale = "solar"
@@ -454,6 +454,16 @@ def register_callbacks(app):
             return None
         gdf = _get_gdf_data(country).reset_index(names="id")
         return _gdf_row_from_click(gdf, wind_click)
+
+    @app.callback(
+        Output("wind-onshore-store", "data"),
+        Input("wind-location-data", "data"),
+    )
+    def store_wind_onshore(wind_location_data):
+        """Store whether the selected Wind location is onshore (True) or offshore (False). Used by wind profile and elsewhere."""
+        if not wind_location_data or "onshore" not in wind_location_data:
+            return None
+        return bool(wind_location_data["onshore"])
 
     @app.callback(
         Output("wind-latlon-store", "data"),

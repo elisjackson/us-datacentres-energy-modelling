@@ -9,7 +9,7 @@ def extrapolate_wind_profile(
     target_height: float,
     v1: pd.Series,
     h1: float,
-    wt_type: Literal["onshore", "offshore"]
+    onshore: bool
 ) -> pd.Series:
     """
     On the ground, the wind is strongly braked by obstacles and surface roughness.
@@ -29,12 +29,10 @@ def extrapolate_wind_profile(
     v2 is the wind speed at height h2. z0 is the roughness length (see table above).
     """
 
-    if wt_type == "onshore":
-        # TODO - check assumption
-        z0 = 0.1
-    elif wt_type == "offshore":
-        # TODO - check assumption
-        z0 = 0.03
+    if onshore:
+        z0 = 0.25
+    else:
+        z0 = 0.0002
 
     ratio = np.log(target_height / z0) / np.log(h1 / z0)
     wind_speed = v1.mul(ratio)
@@ -42,9 +40,8 @@ def extrapolate_wind_profile(
 
 
 def main(
-    lat: float = 0,  # TODO use this
-    lon: float = 0,  # TODO use this
-    onshore: bool = True,  # TODO use this
+    onshore: bool = True,
+    hub_height: int = 150,
     era5_df: pd.DataFrame = None,
     ) -> pd.DataFrame:
     """
@@ -73,25 +70,25 @@ def main(
         era5_df = pd.read_parquet(data_path)
 
     # extrapolate 100m wind speed to the hub height
-    hub_height = 140
     era5_df["wind_speed_hh"] = extrapolate_wind_profile(
-        hub_height,
-        era5_df["wind_speed_100"],
-        100,
-        "onshore"
+        target_height=hub_height,
+        v1=era5_df["wind_speed_100"],
+        h1=100,
+        onshore=onshore
         )
     era5_df = era5_df[["wind_speed_hh"]]
     # round to nearest 0.5
     era5_df["wind_speed_hh"] = (2 * era5_df["wind_speed_hh"]).round() / 2
 
 
-    wt_type = "onshore"
+    wt_type = "onshore"  # TODO - make this dynamic
     wt = "Vestas V112-3.3"
     # get parent path
     parent_path = Path(__file__).parent
     power_curves_path = parent_path / "power_curves" / "power_curves.json"
     with open(power_curves_path, "r") as f:
         power_curves = json.load(f)
+    # TODO - add offshore power curve
     power_curve_data = power_curves[wt_type][wt]
     wind_speed = power_curve_data["wind_speed"]
     power = power_curve_data["power"]

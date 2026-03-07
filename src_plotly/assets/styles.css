@@ -210,10 +210,10 @@ body {
 
 /* Map graph: responsive height */
 .map-graph {
-    height: 600px;
+    height: 400px;
 }
 @media (max-width: 991px) {
-    .map-graph { height: 450px; }
+    .map-graph { height: 320px; }
 }
 @media (max-width: 767px) {
     .map-graph {

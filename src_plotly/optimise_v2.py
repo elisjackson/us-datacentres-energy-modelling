@@ -122,6 +122,7 @@ class Generation():
                 break
 
         if self.name in ["Solar", "Wind"]:
+            self.hub_height = costs.get("Hub height", {}).get("value", None)
             self.pu_profile = self.get_renewable_profile(
                 lat=self.location["lat"],
                 lon=self.location["lon"]
@@ -154,10 +155,11 @@ class Generation():
 
         elif self.name == "Wind":
             # get wind profile
+            if self.hub_height is None:
+                raise ValueError("Hub height is required for wind get_renewable_profile()")
             return calculate_wind_profile.main(
-                lat=self.location["lat"],
-                lon=self.location["lon"],
                 onshore=self.location["onshore"],
+                hub_height=self.hub_height,
                 era5_df=era5_data
                 )
 

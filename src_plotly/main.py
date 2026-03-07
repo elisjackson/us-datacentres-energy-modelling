@@ -73,6 +73,7 @@ accordion = dbc.Accordion(
                                 dcc.Store(id="wind-click-store"),
                                 dcc.Store(id="pv-location-data"),
                                 dcc.Store(id="wind-location-data"),
+                                dcc.Store(id="wind-onshore-store"),
                                 dcc.Store(id="pv-latlon-store"),
                                 dcc.Store(id="wind-latlon-store"),
                                 dcc.Graph(
@@ -118,11 +119,17 @@ accordion = dbc.Accordion(
                                             "Wind data",
                                             className="h4"
                                         ),
-                                        dcc.Store(id="hub-height", data=100),
+                                        dcc.Store(id="era5-wind-height", data=100),
+                                        dcc.Store(id="hub-heights", data={"onshore": 150, "offshore": 200}),
                                         dcc.Graph(
                                             id="wind-profile-graph",
-                                            style={"height": "300px"},
+                                            style={"height": "220px"},
                                             config={"displayModeBar": False},
+                                        ),
+                                        html.Small(
+                                            id="wind-hub-height-note",
+                                            className="text-muted-small",
+                                            style={"minHeight": "1.25em", "display": "block"},
                                         ),
                                     ],
                                 ),
