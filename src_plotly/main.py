@@ -53,16 +53,16 @@ accordion = dbc.Accordion(
                                 dbc.Row(
                                     [
                                         dbc.Col(radioitems),
-                                        dbc.Col(
-                                            [
-                                                html.Label("Select country", className="form-label text-label-blue"),
-                                                dcc.Dropdown(
-                                                    ['United Kingdom', 'United States'],
-                                                    'United Kingdom',
-                                                    id='country-dropdown'
-                                                ),
-                                            ]
-                                        ),
+                                        # dbc.Col(
+                                        #     [
+                                        #         html.Label("Select country", className="form-label text-label-blue"),
+                                        #         dcc.Dropdown(
+                                        #             ['United Kingdom', 'United States'],
+                                        #             'United Kingdom',
+                                        #             id='country-dropdown'
+                                        #         ),
+                                        #     ]
+                                        # ),
                                     ],
                                 ),
                                 html.Div("Some text", className="mb-3 text-label-blue", id="map-helper-text"),
