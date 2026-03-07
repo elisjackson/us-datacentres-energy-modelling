@@ -1,10 +1,12 @@
 import functools
+import io
 import pypsa
 import pandas as pd
 import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.dataset as pa_ds
+import pyarrow.parquet as pq
 import json
 from pathlib import Path
 import logging
@@ -25,24 +27,22 @@ S3_BUCKET = "datacentres-dev-data-207662791637"
 S3 = boto3.client("s3")
 
 
+ERA5_CATALOGUE_KEY = "era5_catalogue/catalogue.parquet"
+
+
 @functools.cache
 def _get_s3_lat_lon_index() -> list[tuple[float, float]]:
-    """List all available (lat, lon) coordinate pairs from the S3 ERA5 partition index.
+    """Load all available (lat, lon) coordinate pairs from the S3 ERA5 catalogue.
 
-    Cached so the S3 listing is only performed once per script execution.
+    Cached so the catalogue is only read once per script execution.
     """
-    logger.info("Getting S3 lat/lon indexes")
-    print(f"Getting S3 lat/lon indexes from {S3_BUCKET}")
-    response = S3.list_objects_v2(Bucket=S3_BUCKET, Prefix="era5/")
-    objects = response.get("Contents", [])
-    coords = []
-    for obj in objects:
-        key = obj["Key"]
-        if ".parquet" not in key:
-            continue
-        lat_val = float(key.split("/")[-3].split("=")[1])
-        lon_val = float(key.split("/")[-2].split("=")[1])
-        coords.append((lat_val, lon_val))
+    logger.info("Loading lat/lon index from S3 catalogue")
+    print(f"Loading lat/lon index from catalogue at s3://{S3_BUCKET}/{ERA5_CATALOGUE_KEY}")
+    response = S3.get_object(Bucket=S3_BUCKET, Key=ERA5_CATALOGUE_KEY)
+    buffer = io.BytesIO(response["Body"].read())
+    df = pq.read_table(buffer).to_pandas()
+    coords_df = df[["lat", "lon"]].drop_duplicates()
+    coords = list(coords_df.itertuples(index=False, name=None))
     return coords
 
 
@@ -53,12 +53,13 @@ def _get_era5_data_s3(lat: float, lon: float) -> pd.DataFrame:
     Cached per unique (lat, lon) pair so repeated calls for the same location
     do not trigger additional S3 reads.
     """
+    print(f"Reading ERA5 data from S3 for ({lat}, {lon})")
     coords = _get_s3_lat_lon_index()
     lat_vals = np.array([c[0] for c in coords])
     lon_vals = np.array([c[1] for c in coords])
     distances = np.sqrt((lat_vals - lat) ** 2 + (lon_vals - lon) ** 2)
     closest_lat, closest_lon = coords[np.argmin(distances)]
-    logger.info(f"Reading ERA5 data from S3 for nearest point ({closest_lat}, {closest_lon})")
+    print(f"Reading ERA5 data from S3 for nearest point ({closest_lat}, {closest_lon})")
     dataset = pa_ds.dataset(
         f"s3://{S3_BUCKET}/era5/",
         format="parquet",
