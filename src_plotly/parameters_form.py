@@ -338,7 +338,7 @@ generation_cards_dict[battery_storage_card.card_id] = battery_storage_card
 generation_cards_dict[co2_card.card_id] = co2_card
 
 
-def concept_form_layout():
+def form_layout():
     """Return the concept form layout for use in main app."""
     return html.Div(
         [
@@ -1198,10 +1198,6 @@ def register_callbacks(app):
                 'costs': costs
             }
 
-        # save collected parameters to file (for debugging)
-        with open("collected_parameters.json", "w") as f:
-            json.dump(parameters, f, indent=2)
-
         try:
             job = optimiser_api.submit_job(parameters)
         except Exception as e:
@@ -1288,6 +1284,6 @@ if __name__ == "__main__":
     from dash import Dash
     external_stylesheets = [dbc.themes.DARKLY, dbc.icons.BOOTSTRAP]
     app = Dash(__name__, external_stylesheets=external_stylesheets)
-    app.layout = dbc.Container(concept_form_layout(), fluid=True)
+    app.layout = dbc.Container(form_layout(), fluid=True)
     register_callbacks(app)
     app.run(debug=True, port=8051)
