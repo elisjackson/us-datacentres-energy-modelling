@@ -8,7 +8,7 @@ from dash.exceptions import PreventUpdate
 from pathlib import Path
 from typing import List, Literal
 
-import src_plotly.optimiser_api as optimiser_api
+import src.optimiser_api as optimiser_api
 
 DIR = Path(__file__).parent
 CONFIG_DIR = DIR / "config"
