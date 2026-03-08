@@ -30,19 +30,17 @@ def register_callbacks(app):
         key_mappings = {
             "ssrd": "GHI (W/m²)",
             "fdir": "DNI (W/m²)",
-            "lat": "Latitude",
-            "lon": "Longitude",
         }
 
         # template empty dataframe
-        empty_df = pd.DataFrame({"Value": [""] * 4}, index=["GHI (W/m²)", "DNI (W/m²)", "Latitude", "Longitude"])
+        empty_df = pd.DataFrame({"Value": [""] * 2}, index=["GHI (W/m²)", "DNI (W/m²)"])
 
         if not pv_location_data:
             return dbc.Table.from_dataframe(empty_df, index=True, index_label="Property")
 
         df = pd.DataFrame([pv_location_data])
         df = df.rename(columns=key_mappings)
-        df = df[[c for c in ["GHI (W/m²)", "DNI (W/m²)", "Latitude", "Longitude"] if c in df.columns]]
+        df = df[[c for c in ["GHI (W/m²)", "DNI (W/m²)"] if c in df.columns]]
 
         if df.empty:
             return dbc.Table.from_dataframe(empty_df, index=True, index_label="Property")

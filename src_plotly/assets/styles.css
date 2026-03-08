@@ -109,6 +109,30 @@ body {
     color: #ecf0f1 !important;
 }
 
+/* App modals (About, optimiser): match app dark theme */
+.app-modal .modal-content {
+    background-color: #101113 !important;
+    border-color: #38393b !important;
+    color: #c3c1bd !important;
+    box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.5);
+}
+.app-modal .modal-header {
+    background-color: #09090b !important;
+    color: #c3c1bd !important;
+    border-bottom-color: #38393b !important;
+}
+.app-modal .modal-body {
+    background-color: #101113 !important;
+    color: #c3c1bd !important;
+}
+.app-modal .modal-footer {
+    background-color: #101113 !important;
+    border-top-color: #38393b !important;
+}
+.app-modal .modal-body a {
+    color: #7aabd4;
+}
+
 .header-links {
     display: flex;
     align-items: center;

@@ -233,6 +233,7 @@ about_modal = dbc.Modal(
         ),
     ],
     id="about-modal",
+    className="app-modal",
     is_open=False,
     centered=True,
     size="xl",

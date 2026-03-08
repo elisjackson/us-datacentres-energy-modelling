@@ -480,16 +480,19 @@ def concept_form_layout():
             # Loading modal (body message is updated when infeasible)
             dbc.Modal(
                 [
-                    dbc.ModalHeader(dbc.ModalTitle("Optimising")),
+                    dbc.ModalHeader(dbc.ModalTitle("Cooking up your microgrid...")),
                     dbc.ModalBody(
-                        html.Div(
-                            id="optimiser-loading-modal-message",
-                            children=[
-                                dbc.Spinner(color="primary", size="sm", spinner_class_name="me-2"),
-                                " Running optimisation…",
-                            ],
-                            className="d-flex align-items-center",
-                        ),
+                        [
+                            html.Div(id="optimiser-loading-modal-warning", className="mb-2"),
+                            html.Div(
+                                id="optimiser-loading-modal-message",
+                                children=[
+                                    dbc.Spinner(color="primary", size="sm", spinner_class_name="me-2"),
+                                    " Running optimisation…",
+                                ],
+                                className="d-flex align-items-center",
+                            ),
+                        ],
                     ),
                     dbc.ModalFooter(
                         dbc.Button(
@@ -501,6 +504,7 @@ def concept_form_layout():
                     ),
                 ],
                 id="optimiser-loading-modal",
+                className="app-modal",
                 is_open=False,
                 centered=True,
                 backdrop="static",
@@ -836,6 +840,7 @@ def register_callbacks(app):
     @app.callback(
         Output("optimiser-loading-modal", "is_open"),
         Output("optimiser-trigger-run", "data"),
+        Output("optimiser-loading-modal-warning", "children"),
         Output("optimiser-loading-modal-message", "children"),
         Input("optimise-button", "n_clicks"),
         State("pv-latlon-store", "data"),
@@ -879,21 +884,17 @@ def register_callbacks(app):
             warning_text = None
 
         if warning_text:
-            warning_text += " There might be some spare grid capacity here for a few years..."
+            warning_text += " (There might be some spare grid capacity here for a few years)."
+            warning_children = html.Div(warning_text, className="text-warning mb-2")
             message_children = html.Div(
-                [
-                    html.Div(warning_text, className="text-warning mb-2"),
-                    html.Div(
-                        _loading_modal_default,
-                        className="d-flex align-items-center",
-                    ),
-                ],
-                className="d-flex flex-column",
+                _loading_modal_default,
+                className="d-flex align-items-center",
             )
         else:
+            warning_children = []
             message_children = _loading_modal_default
 
-        return True, n_clicks, message_children
+        return True, n_clicks, warning_children, message_children
     
     
     def _running_message(progress_text):
@@ -910,7 +911,7 @@ def register_callbacks(app):
             (
                 "Gosh, I'm infeasible :'(\n"
                 "Probably because I can't meet the load all year.\n"
-                "I'd appreciate some baseload or backup generation... (add Grid, Gas or SMR)."
+                "I'd appreciate some baseload or backup generation... (add Gas or SMR)."
             ),
             style={"whiteSpace": "pre-line"},
         )

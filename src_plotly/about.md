@@ -4,10 +4,11 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 
 Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
-## Section
+### Future to-dos
 
-- Curabitur pretium tincidunt lacus.
-- Nulla facilisi. Ut fringilla.
-- Suspendisse potenti. Nunc feugiat.
+(At some point, for now I need a break.)
 
-**Bold text** and *italic text* are supported. Replace this placeholder with real about content when ready.
+- Tidy up repo & make public
+- Include discounting
+- Add an option for electricity from the grid?
+- Any other ideas? Let me know... [my LinkedIn](https://www.linkedin.com/in/elis-jackson-a428801a5)
