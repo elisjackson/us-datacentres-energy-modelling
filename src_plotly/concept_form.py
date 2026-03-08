@@ -8,7 +8,7 @@ from dash.exceptions import PreventUpdate
 from pathlib import Path
 from typing import List, Literal
 
-import src_plotly.optimise_v2 as optimise_v2
+import src_plotly.optimiser_api as optimiser_api
 
 DIR = Path(__file__).parent
 CONFIG_DIR = DIR / "config"
@@ -473,7 +473,10 @@ def concept_form_layout():
             # Stores for optimisation workflow
             dcc.Store(id="optimiser-parameters-store"),
             dcc.Store(id="optimiser-trigger-run"),
+            dcc.Store(id="optimiser-job-store"),
+            dcc.Store(id="optimiser-results-fetched-job-id"),
             dcc.Store(id="cost-selections-store", data={}),
+            dcc.Interval(id="optimiser-poll-interval", interval=2000, n_intervals=0, disabled=True),
             # Loading modal (body message is updated when infeasible)
             dbc.Modal(
                 [
@@ -487,6 +490,14 @@ def concept_form_layout():
                             ],
                             className="d-flex align-items-center",
                         ),
+                    ),
+                    dbc.ModalFooter(
+                        dbc.Button(
+                            "Close",
+                            id="optimiser-loading-modal-close",
+                            color="secondary",
+                            outline=True,
+                        )
                     ),
                 ],
                 id="optimiser-loading-modal",
@@ -885,12 +896,43 @@ def register_callbacks(app):
         return True, n_clicks, message_children
     
     
+    def _running_message(progress_text):
+        return html.Div(
+            [
+                dbc.Spinner(color="primary", size="sm", spinner_class_name="me-2"),
+                f" {progress_text}",
+            ],
+            className="d-flex align-items-center",
+        )
+
+    def _infeasible_message():
+        return html.Div(
+            (
+                "Gosh, I'm infeasible :'(\n"
+                "Probably because I can't meet the load all year.\n"
+                "I'd appreciate some baseload or backup generation... (add Grid, Gas or SMR)."
+            ),
+            style={"whiteSpace": "pre-line"},
+        )
+
+    @app.callback(
+        Output("optimiser-loading-modal", "is_open", allow_duplicate=True),
+        Input("optimiser-loading-modal-close", "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def close_loading_modal(_n_clicks):
+        return False
+
     @app.callback(
         Output("optimiser-parameters-store", "data"),
+        Output("optimiser-job-store", "data"),
+        Output("optimiser-poll-interval", "disabled"),
+        Output("optimiser-poll-interval", "n_intervals"),
         Output("optimiser-loading-modal", "is_open", allow_duplicate=True),
         Output("main-accordion", "active_item"),
         Output("optimiser-results-data", "data"),
         Output("optimiser-loading-modal-message", "children", allow_duplicate=True),
+        Output("optimiser-results-fetched-job-id", "data"),
         Input("optimiser-trigger-run", "data"),
         State("data-centre-capacity-slider", "value"),
         State({"type": "generation-pill", "index": ALL}, "active"),
@@ -927,13 +969,11 @@ def register_callbacks(app):
         hub_heights,
         wind_onshore,
     ):
-        """Collect all form parameters and structure them for the optimiser."""
-        
-        if trigger is None:
-            return no_update, no_update, no_update, no_update
+        """Collect all form parameters, submit the optimiser job, and start polling."""
 
-        # TODO - remove fallback when ready
-        # TODO - add validation that these are included
+        if trigger is None:
+            return no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update
+
         # Fallback map coordinates so optimiser can run without selected map points.
         default_pv_location = dict(DEFAULT_MAP_LOCATION)
         default_wind_location = {**DEFAULT_MAP_LOCATION, "onshore": True}
@@ -1162,27 +1202,84 @@ def register_callbacks(app):
             json.dump(parameters, f, indent=2)
 
         try:
-            optimiser_results = optimise_v2.main(parameters)
+            job = optimiser_api.submit_job(parameters)
         except Exception as e:
-            logging.exception("Optimisation failed")
+            logging.exception("Optimiser submission failed")
             optimiser_results = {
-                'status': 'error',
-                'message': str(e),
+                "status": "error",
+                "message": str(e),
             }
+            return parameters, None, True, 0, False, "accordion-results", optimiser_results, no_update, no_update
 
-        if optimiser_results.get("status") == "infeasible":
-            # Keep modal open with message; do not open results accordion or write results
-            message = (
-                "Gosh, I'm infeasible :'(\n"
-                "Probably because I can't meet the load all year.\n"
-                "I'd appreciate some baseload or backup generation... (add Grid, Gas or SMR)."
-            )
-            return parameters, True, no_update, no_update, html.Div(
-                message, style={"whiteSpace": "pre-line"}
-            )
+        queue_message = _running_message(job.get("progress", "Queued for optimisation"))
+        return parameters, job, False, 0, no_update, no_update, no_update, queue_message, None
 
-        # Return: parameters store, close modal, open Results accordion, results data
-        return parameters, False, "accordion-results", optimiser_results, no_update
+    @app.callback(
+        Output("optimiser-job-store", "data", allow_duplicate=True),
+        Output("optimiser-poll-interval", "disabled", allow_duplicate=True),
+        Output("optimiser-loading-modal", "is_open", allow_duplicate=True),
+        Output("main-accordion", "active_item", allow_duplicate=True),
+        Output("optimiser-results-data", "data", allow_duplicate=True),
+        Output("optimiser-loading-modal-message", "children", allow_duplicate=True),
+        Output("optimiser-results-fetched-job-id", "data", allow_duplicate=True),
+        Input("optimiser-poll-interval", "n_intervals"),
+        State("optimiser-job-store", "data"),
+        State("optimiser-results-fetched-job-id", "data"),
+        prevent_initial_call=True,
+    )
+    def poll_optimiser_job(_n_intervals, job_data, results_fetched_job_id):
+        if not job_data or not job_data.get("job_id"):
+            raise PreventUpdate
+
+        job_id = job_data["job_id"]
+
+        try:
+            status = optimiser_api.get_job_status(job_id)
+        except Exception as e:
+            logging.exception("Optimiser status check failed")
+            optimiser_results = {
+                "status": "error",
+                "message": str(e),
+            }
+            return None, True, False, "accordion-results", optimiser_results, no_update, no_update
+
+        job_status = status.get("status")
+        progress = status.get("progress", "Running optimisation…")
+
+        if job_status in {"queued", "running"}:
+            return status, False, no_update, no_update, no_update, _running_message(progress), no_update
+
+        if job_status == "infeasible":
+            return None, True, True, no_update, no_update, _infeasible_message(), no_update
+
+        if job_status in {"done", "error"}:
+            if results_fetched_job_id == job_id:
+                return None, True, False, "accordion-results", no_update, _loading_modal_default, no_update
+            if job_status == "done":
+                try:
+                    optimiser_results = optimiser_api.get_job_result(job_id)
+                except Exception as e:
+                    logging.exception("Optimiser result fetch failed")
+                    optimiser_results = {
+                        "status": "error",
+                        "message": str(e),
+                    }
+                return None, True, False, "accordion-results", optimiser_results, _loading_modal_default, job_id
+            else:
+                try:
+                    optimiser_results = optimiser_api.get_job_result(job_id)
+                except Exception:
+                    optimiser_results = {
+                        "status": "error",
+                        "message": status.get("message", "Optimisation failed."),
+                    }
+                return None, True, False, "accordion-results", optimiser_results, _loading_modal_default, job_id
+
+        optimiser_results = {
+            "status": "error",
+            "message": f"Unexpected optimiser job status: {job_status}",
+        }
+        return None, True, False, "accordion-results", optimiser_results, _loading_modal_default, no_update
 
 
 # For standalone testing

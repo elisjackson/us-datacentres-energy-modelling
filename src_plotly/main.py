@@ -1,3 +1,7 @@
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from dash import Dash, dcc, html
 import dash_bootstrap_components as dbc
 import pandas as pd
@@ -227,4 +231,4 @@ app.layout = dbc.Container(
 
 if __name__ == "__main__":
     # Local: run from repo root with python -m src_plotly.main (so src_plotly imports work)
-    app.run(debug=False)
+    app.run(debug=True)

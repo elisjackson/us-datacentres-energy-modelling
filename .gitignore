@@ -1,3 +1,4 @@
+.env
 *.html
 *.egg-info
 .venv/*

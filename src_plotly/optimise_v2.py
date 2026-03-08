@@ -402,7 +402,7 @@ def pypsa_model(
 
     # Create network with snapshots
     network = pypsa.Network()
-    snapshots = pd.date_range("2024-01-01", periods=8760, freq="h")  # Full year
+    snapshots = pd.date_range("2025-01-01", periods=8760, freq="h")  # Full year
     network.set_snapshots(snapshots)
 
     # Add bus
