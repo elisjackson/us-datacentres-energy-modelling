@@ -1,10 +1,15 @@
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from dash import Dash, dcc, html
+from dash import Dash, dcc, html, Input, Output, State, no_update, ctx
 import dash_bootstrap_components as dbc
 import pandas as pd
+
+_about_md_path = Path(__file__).resolve().parent / "about.md"
+ABOUT_MD = _about_md_path.read_text(encoding="utf-8") if _about_md_path.exists() else "About content not found."
 
 import src_plotly.map_callbacks as map_callbacks
 import src_plotly.wind_profile as wind_profile
@@ -203,11 +208,34 @@ header_links = html.Div(
 
 app_header = html.Div(
     [
-        html.H1("Datacentre energy optimiser", className="app-header-title"),
-        header_links,
+        html.Div(
+            html.H1("Datacentre energy optimiser", className="app-header-title"),
+            className="header-left",
+        ),
+        html.Div(
+            [
+                dbc.Button("About", id="about-button", outline=True, color="secondary", className="about-btn rounded-pill px-3"),
+                header_links,
+            ],
+            className="header-right",
+        ),
     ],
     id="app-header",
     className="app-header",
+)
+
+about_modal = dbc.Modal(
+    [
+        dbc.ModalHeader(dbc.ModalTitle("About")),
+        dbc.ModalBody(dcc.Markdown(ABOUT_MD, className="mb-0"), className="p-4"),
+        dbc.ModalFooter(
+            dbc.Button("Close", id="about-modal-close", color="secondary", outline=True),
+        ),
+    ],
+    id="about-modal",
+    is_open=False,
+    centered=True,
+    size="xl",
 )
 
 main_content = html.Div(
@@ -222,12 +250,30 @@ app.layout = dbc.Container(
         [
             app_header,
             main_content,
+            about_modal,
         ],
         className="app-layout",
     ),
     fluid=True,
     className="app-container",
 )
+
+
+@app.callback(
+    Output("about-modal", "is_open"),
+    Input("about-button", "n_clicks"),
+    Input("about-modal-close", "n_clicks"),
+    State("about-modal", "is_open"),
+    prevent_initial_call=True,
+)
+def toggle_about_modal(_about_n, _close_n, is_open):
+    if not ctx.triggered_id:
+        return no_update
+    if ctx.triggered_id == "about-button":
+        return True
+    if ctx.triggered_id == "about-modal-close":
+        return False
+    return no_update
 
 if __name__ == "__main__":
     # Local: run from repo root with python -m src_plotly.main (so src_plotly imports work)

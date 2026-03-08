@@ -46,21 +46,46 @@ body {
     margin-bottom: 0 !important;
 }
 
-/* Sticky header */
+/* Sticky header: two columns; button is absolutely centered on wide, flows right on narrow */
 .app-header {
     position: sticky;
     top: 0;
     z-index: 1000;
     flex-shrink: 0;
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     align-items: center;
-    justify-content: space-between;
     width: 100%;
     min-height: 3rem;
     margin: 0 !important;
     background-color: #08090a;
     padding: 0.75rem 1rem;
     border-bottom: 1px solid #25344c;
+}
+.app-header .about-btn {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+.header-left {
+    min-width: 0;
+}
+.header-left .app-header-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.header-right {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.75rem;
+}
+@media (max-width: 992px) {
+    .app-header .about-btn {
+        position: static;
+        transform: none;
+    }
 }
 .app-header-title {
     margin: 0;
@@ -72,6 +97,16 @@ body {
 .content {
     padding: 2rem 2rem;
     padding-top: 2.5rem;
+}
+
+/* About button: outline only, same effective bg as app so it stays subtle */
+.about-btn {
+    background-color: transparent;
+}
+.about-btn:hover {
+    background-color: #1b5389 !important;
+    border-color: #1b5389 !important;
+    color: #ecf0f1 !important;
 }
 
 .header-links {
