@@ -480,7 +480,7 @@ def form_layout():
             # Loading modal (body message is updated when infeasible)
             dbc.Modal(
                 [
-                    dbc.ModalHeader(dbc.ModalTitle("Cooking up your microgrid...")),
+                    dbc.ModalHeader(dbc.ModalTitle("Cooking up a microgrid...")),
                     dbc.ModalBody(
                         [
                             html.Div(id="optimiser-loading-modal-warning", className="mb-2"),
