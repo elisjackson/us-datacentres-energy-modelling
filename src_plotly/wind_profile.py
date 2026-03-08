@@ -66,7 +66,7 @@ def make_empty_wind_profile_figure():
         dragmode=False,
         annotations=[
             dict(
-                text="Select a Wind location on the map",
+                text="No data",
                 x=0.5,
                 y=0.5,
                 xref="paper",

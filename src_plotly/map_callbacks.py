@@ -128,7 +128,6 @@ def _get_geo_data(filepath, color_on, country):
         onshore_only_clickable = True
     else:
         raise ValueError(f"Color on {color_on} not supported")
-
     cache_key = (filepath, color_on)
     if cache_key in _geo_cache:
         cached = _geo_cache[cache_key]
@@ -157,8 +156,9 @@ def _get_geo_data(filepath, color_on, country):
         zoom = 2.5
     else:
         center = _center_from_geojson(geojson)
-        zoom = 4
+        zoom = 3.5
 
+    # Don't pass label for color axis so Express doesn't set colorbar title (we use overlay)
     base_fig = px.choropleth_map(
         df,
         geojson=geojson,
@@ -170,7 +170,7 @@ def _get_geo_data(filepath, color_on, country):
         center=center,
         zoom=zoom,
         hover_data={color_on: ":.2f", "id": False, "onshore_label": True},
-        labels={color_on: label},
+        labels={color_on: ""},
     )
     base_fig.update_traces(
         marker_line_width=0,
@@ -187,17 +187,22 @@ def _get_geo_data(filepath, color_on, country):
         hovertemplate=hover_tpl,
         selector=dict(type="choroplethmap"),
     )
+    # Title shown via custom overlay (map-colorbar-title) so it can wrap; remove built-in title
     base_fig.update_traces(
         colorbar=dict(
             bgcolor="rgba(0,0,0,0)",
             bordercolor="rgba(0,0,0,0)",
             tickfont=dict(color="#e0e0e0"),
-            title=dict(font=dict(color="#e0e0e0")),
+            title=None,
         ),
         selector=dict(type="choroplethmap"),
     )
+    # Ensure no colorbar title in trace dict (Express/cache may otherwise leave it)
+    for trace in base_fig.data:
+        if getattr(trace, "type", None) == "choroplethmap" and getattr(trace, "colorbar", None):
+            trace.colorbar["title"] = None
     base_fig.update_layout(
-        margin=dict(r=0, t=0, l=0, b=0),
+        margin=dict(r=150, t=0, l=0, b=0),
         uirevision=color_on,
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
@@ -360,6 +365,13 @@ def prewarm_geo_cache():
 def register_callbacks(app):
     """Register map-related Dash callbacks. Call from main after creating the app."""
 
+    def _colorbar_title_for_layer(radio_selection):
+        if radio_selection == "Wind":
+            return "Mean 100m wind speed (m/s)"
+        if radio_selection == "PV":
+            return "Mean irradiation (W/m²)"
+        return ""
+
     @app.callback(
         [
             Output("map", "figure"),
@@ -368,6 +380,7 @@ def register_callbacks(app):
             Output("last-country-store", "data"),
             Output("pv-click-store", "data", allow_duplicate=True),
             Output("wind-click-store", "data", allow_duplicate=True),
+            Output("map-colorbar-title", "children"),
         ],
         Input("radioitems-input", "value"),
         # Input("country-dropdown", "value"),
@@ -405,7 +418,7 @@ def register_callbacks(app):
             out_dict = _apply_relayout_to_fig_dict(
                 geo_data["base_figure_dict"], relayout_data, country_changed
             )
-            return out_dict, out_dict, max_wind, country, pv_out, wind_out
+            return out_dict, out_dict, max_wind, country, pv_out, wind_out, _colorbar_title_for_layer(radio_selection)
 
         out_dict = copy.deepcopy(geo_data["base_figure_dict"])
         if not country_changed and relayout_data:
@@ -438,7 +451,7 @@ def register_callbacks(app):
                         )
                     except (KeyError, TypeError, ValueError):
                         pass
-        return out_dict, out_dict, max_wind, country, pv_out, wind_out
+        return out_dict, out_dict, max_wind, country, pv_out, wind_out, _colorbar_title_for_layer(radio_selection)
 
     app.clientside_callback(
         """
@@ -573,8 +586,8 @@ def register_callbacks(app):
     )
     def display_map_helper_text(radio_selection):
         if radio_selection == "Wind":
-            return "Select a location for the wind farm. This may be different to the data centre location."
+            return "Select a location for Wind deployment"
         elif radio_selection == "PV":
-            return "Select a location for the data centre. Solar PV will be assumed to be co-located."
+            return "Select a location for Solar PV deployment"
         else:
             return "Placeholder text"

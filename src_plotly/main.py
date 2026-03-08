@@ -41,7 +41,7 @@ radioitems = html.Div(
         dbc.Label("Select map layer", className="text-label-blue"),
         dbc.RadioItems(
             options=[
-                {"label": "Data Centre & PV location", "value": "PV"},
+                {"label": "Solar PV location", "value": "PV"},
                 {"label": "Wind location", "value": "Wind"},
             ],
             value="PV",
@@ -75,7 +75,6 @@ accordion = dbc.Accordion(
                                         # ),
                                     ],
                                 ),
-                                html.Div("Some text", className="mb-3 text-label-blue", id="map-helper-text"),
                                 dcc.Store(id="figure-store"),
                                 dcc.Store(id="map-wind-max"),
                                 dcc.Store(id="last-country-store"),
@@ -86,20 +85,27 @@ accordion = dbc.Accordion(
                                 dcc.Store(id="wind-onshore-store"),
                                 dcc.Store(id="pv-latlon-store"),
                                 dcc.Store(id="wind-latlon-store"),
-                                dcc.Graph(
-                                    id="map",
-                                    className="map-graph",
-                                    config={"displayModeBar": False},
-                                    figure={
-                                        "data": [],
-                                        "layout": {
-                                            "paper_bgcolor": "rgb(10, 20, 36)",
-                                            "plot_bgcolor": "rgb(10, 20, 36)",
-                                            "margin": {"l": 0, "r": 0, "t": 0, "b": 0},
-                                            "xaxis": {"visible": False},
-                                            "yaxis": {"visible": False},
-                                        }
-                                    },
+                                html.Div(
+                                    [
+                                        html.Div("Some text", className="map-helper-overlay text-label-blue", id="map-helper-text"),
+                                        dcc.Graph(
+                                            id="map",
+                                            className="map-graph",
+                                            config={"displayModeBar": False},
+                                            figure={
+                                                "data": [],
+                                                "layout": {
+                                                    "paper_bgcolor": "rgb(10, 20, 36)",
+                                                    "plot_bgcolor": "rgb(10, 20, 36)",
+                                                    "margin": {"l": 0, "r": 0, "t": 0, "b": 0},
+                                                    "xaxis": {"visible": False},
+                                                    "yaxis": {"visible": False},
+                                                }
+                                            },
+                                        ),
+                                        html.Div(id="map-colorbar-title", className="map-colorbar-title"),
+                                    ],
+                                    className="map-with-helper",
                                 )
                             ],
                             lg=8,
@@ -112,40 +118,73 @@ accordion = dbc.Accordion(
                         ),
                         dbc.Col(
                             [
-                                html.Div(
+                                dbc.Row(
                                     [
-                                        html.Span(
-                                            "Solar data",
-                                            className="h4"
+                                        dbc.Col(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        html.Span(
+                                                            "Solar data",
+                                                            className="h4"
+                                                        ),
+                                                        html.Div(
+                                                            [
+                                                                html.Div(id="solar-data-table"),
+                                                                solar_data_table_footer,
+                                                            ],
+                                                            className="solar-data-content",
+                                                        ),
+                                                    ],
+                                                    className="solar-data-section",
+                                                ),
+                                            ],
+                                            width=6,
+                                            lg=12,
+                                            className="solar-wind-data-col",
                                         ),
-                                        html.Div(id="solar-data-table"),
-                                        solar_data_table_footer,
+                                        dbc.Col(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        html.Span(
+                                                            "Wind data",
+                                                            className="h4"
+                                                        ),
+                                                        dcc.Store(id="era5-wind-height", data=100),
+                                                        dcc.Store(id="hub-heights", data={"onshore": 150, "offshore": 200}),
+                                                        html.Div(
+                                                            [
+                                                                html.Div(
+                                                                    dcc.Graph(
+                                                                        id="wind-profile-graph",
+                                                                        style={"height": "100%", "width": "100%"},
+                                                                        config={"displayModeBar": False},
+                                                                    ),
+                                                                    className="wind-profile-figure-wrapper",
+                                                                ),
+                                                                html.Small(
+                                                                    id="wind-hub-height-note",
+                                                                    className="text-muted-small",
+                                                                    style={"minHeight": "1.25em", "display": "block"},
+                                                                ),
+                                                            ],
+                                                            className="wind-data-content",
+                                                        ),
+                                                    ],
+                                                    className="wind-data-section",
+                                                ),
+                                            ],
+                                            width=6,
+                                            lg=12,
+                                            className="solar-wind-data-col",
+                                        ),
                                     ],
-                                    className="solar-data-section",
-                                ),
-                                html.Div(
-                                    [
-                                        html.Span(
-                                            "Wind data",
-                                            className="h4"
-                                        ),
-                                        dcc.Store(id="era5-wind-height", data=100),
-                                        dcc.Store(id="hub-heights", data={"onshore": 150, "offshore": 200}),
-                                        dcc.Graph(
-                                            id="wind-profile-graph",
-                                            style={"height": "220px"},
-                                            config={"displayModeBar": False},
-                                        ),
-                                        html.Small(
-                                            id="wind-hub-height-note",
-                                            className="text-muted-small",
-                                            style={"minHeight": "1.25em", "display": "block"},
-                                        ),
-                                    ],
+                                    className="solar-wind-data-row row gap-3 gx-lg-0 mx-0",
                                 ),
                             ],
                             lg=4,
-                            className="d-flex flex-column justify-content-evenly gap-3 ps-lg-3 ps-0 pe-0 mt-4 mt-lg-0",
+                            className="ps-lg-3 ps-0 pe-0 mt-4 mt-lg-0",
                         ),
                     ],
                     className="mx-0",

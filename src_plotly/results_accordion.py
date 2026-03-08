@@ -114,7 +114,7 @@ def _fig_layout(xaxis_title: str, yaxis_title: str, show_placeholder=False):
     if show_placeholder:
         layout["annotations"] = [
             dict(
-                text="Run the optimiser to see optimal capacities",
+                text="No data",
                 x=0.5,
                 y=0.5,
                 xref="paper",
@@ -234,7 +234,7 @@ def create_annual_generation_graph(annual_generation: dict = None):
         fig.update_layout(
             annotations=[
                 dict(
-                    text="Run the optimiser to see annual generation by generator",
+                    text="No data",
                     x=0.5,
                     y=0.5,
                     xref="paper",
@@ -488,6 +488,7 @@ def results_layout():
                             figure=create_timeseries_plot(timeseries=None),
                             id="timeseries-fig",
                             config={"displayModeBar": False},
+                            style={"height": "300px"},
                         ),
                         md=12,
                     ),
@@ -601,7 +602,7 @@ def register_callbacks(app):
     )
     def _show_results_store_for_debugging(data):
         if data is None:
-            summary = "No results yet. Run the optimiser to populate."
+            summary = "No data"
             return html.Pre(summary, className="text-muted small")
 
         summary = "Keys: " + ", ".join(data.keys())

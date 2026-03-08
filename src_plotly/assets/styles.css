@@ -46,11 +46,9 @@ body {
     margin-bottom: 0 !important;
 }
 
-/* Sticky header: two columns; button is absolutely centered on wide, flows right on narrow */
+/* Header: two columns; button is absolutely centered on wide, flows right on narrow */
 .app-header {
-    position: sticky;
-    top: 0;
-    z-index: 1000;
+    position: relative;
     flex-shrink: 0;
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -96,7 +94,7 @@ body {
 /* Main content spacing */
 .content {
     padding: 2rem 2rem;
-    padding-top: 2.5rem;
+    padding-top: 1rem;
 }
 
 /* About button: outline only, same effective bg as app so it stays subtle */
@@ -224,6 +222,9 @@ body {
     flex-direction: column;
     gap: 0.5rem !important;
 }
+.solar-data-footer {
+    margin-top: 0.75rem;
+}
 
 /* Solar PV data table */
 #solar-data-table {
@@ -235,6 +236,14 @@ body {
 }
 #solar-data-table table {
     margin-bottom: 0 !important;
+    table-layout: fixed;
+    width: 100%;
+}
+#solar-data-table th:nth-child(2),
+#solar-data-table td:nth-child(2) {
+    width: 5.5rem;
+    min-width: 5.5rem;
+    text-align: right;
 }
 #solar-data-table thead tr {
     background-color: #0f2035 !important;
@@ -268,6 +277,35 @@ body {
 }
 
 /* Map graph: responsive height */
+.map-with-helper {
+    position: relative;
+}
+.map-helper-overlay {
+    position: absolute;
+    top: 0.75rem;
+    left: 1rem;
+    z-index: 10;
+    pointer-events: none;
+    background-color: rgba(8, 9, 10, 0.85);
+    padding: 0.35rem 0.6rem;
+    border-radius: 4px;
+}
+/* Wrapped colorbar title overlay – full text, no wording change */
+.map-colorbar-title {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    max-width: 5.5em;
+    line-height: 1.25;
+    font-size: 0.8rem;
+    color: #e0e0e0;
+    pointer-events: none;
+    z-index: 10;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    text-align: right;
+}
 .map-graph {
     height: 400px;
 }
@@ -292,9 +330,14 @@ body {
     background-color: rgb(10, 20, 36) !important;
 }
 
+/* Hide any colorbar title (we use .map-colorbar-title overlay); fallback if Plotly still renders one */
+#map .cbtitle {
+    display: none !important;
+    visibility: hidden !important;
+}
+
 /* Plotly colorbar text – map backend may ignore tickfont/title font, so override with CSS */
 #map .colorbar text,
-#map .cbtitle,
 #map .cbtitle text,
 #map .cbaxis text {
     fill: #e0e0e0 !important;
@@ -768,9 +811,85 @@ body {
 .results-bar-chart-wrapper .dash-graph {
     height: 100%;
 }
+
+/* Wind profile figure: limit width when it gets its own row so it doesn't stretch too wide */
+.wind-profile-figure-wrapper {
+    width: 100%;
+    /* max-width: 280px; */
+    max-height: 250px;
+    aspect-ratio: 3 / 4;
+    min-height: 160px;
+}
+.wind-profile-figure-wrapper .dash-graph {
+    height: 100%;
+    width: 100%;
+}
+
+/* When solar/wind data are under the map (below lg), keep them side by side in one row */
 @media (max-width: 991px) {
+    .solar-wind-data-row {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+    }
+    .solar-wind-data-row .solar-wind-data-col {
+        flex: 0 0 50%;
+        max-width: 50%;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    /* Titles stay at top; table and plot vertically centered relative to each other */
+    .solar-wind-data-row .solar-data-section,
+    .solar-wind-data-row .wind-data-section {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+    }
+    .solar-wind-data-row .solar-data-section > .h4,
+    .solar-wind-data-row .wind-data-section > .h4 {
+        flex-shrink: 0;
+    }
+    .solar-wind-data-row .solar-data-content,
+    .solar-wind-data-row .wind-data-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: stretch;
+        min-height: 0;
+    }
     .results-bar-chart-wrapper {
         aspect-ratio: 16 / 10;
+    }
+}
+@media (min-width: 992px) {
+    .solar-wind-data-row {
+        flex-direction: column;
+    }
+    .solar-wind-data-row .solar-wind-data-col {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+}
+/* Narrow screens: stack Solar and Wind vertically under the map */
+@media (max-width: 767px) {
+    .solar-wind-data-row {
+        flex-direction: column;
+    }
+    .solar-wind-data-row .solar-wind-data-col {
+        flex: 0 0 100%;
+        width: 100%;
+        max-width: 100%;
+    }
+    /* Let wind plot use full column width when stacked */
+    .solar-wind-data-row .wind-profile-figure-wrapper {
+        width: 100%;
+        max-width: 100%;
+        max-height: 220px;
+        aspect-ratio: 16 / 9;
+        align-self: stretch;
     }
 }
 @media (max-width: 767px) {

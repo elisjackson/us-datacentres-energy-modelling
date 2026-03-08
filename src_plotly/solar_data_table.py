@@ -46,7 +46,7 @@ def register_callbacks(app):
             return dbc.Table.from_dataframe(empty_df, index=True, index_label="Property")
 
         numeric_cols = df.select_dtypes(include="number").columns
-        df[numeric_cols] = df[numeric_cols].round(4)
+        df[numeric_cols] = df[numeric_cols].round(1)
         df = df.T
         df.columns = ["Value"]
 
@@ -54,5 +54,5 @@ def register_callbacks(app):
 
 solar_data_table_footer = html.P(
     ["GHI: Global Horizontal Irradiance", html.Br(), "DNI: Direct Normal Irradiance"],
-    className="text-muted-small",
+    className="text-muted-small solar-data-footer",
 )
