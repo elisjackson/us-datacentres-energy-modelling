@@ -11,13 +11,13 @@ import pandas as pd
 _about_md_path = Path(__file__).resolve().parent / "about.md"
 ABOUT_MD = _about_md_path.read_text(encoding="utf-8") if _about_md_path.exists() else "About content not found."
 
-import src_plotly.map_callbacks as map_callbacks
-import src_plotly.wind_profile as wind_profile
-import src_plotly.solar_data_table as solar_data_table
-import src_plotly.parameters_form as parameters_form
-from src_plotly.solar_data_table import solar_data_table_footer
-from src_plotly.parameters_form import form_layout
-from src_plotly.results_accordion import results_layout, register_callbacks as results_register_callbacks
+import src.map_callbacks as map_callbacks
+import src.wind_profile as wind_profile
+import src.solar_data_table as solar_data_table
+import src.parameters_form as parameters_form
+from src.solar_data_table import solar_data_table_footer
+from src.parameters_form import form_layout
+from src.results_accordion import results_layout, register_callbacks as results_register_callbacks
 
 external_stylesheets = [
     dbc.themes.DARKLY,
@@ -32,7 +32,7 @@ solar_data_table.register_callbacks(app)
 parameters_form.register_callbacks(app)
 results_register_callbacks(app)
 
-# WSGI entry point for cloud (e.g. gunicorn src_plotly.main:server). Run from repo root.
+# WSGI entry point for cloud (e.g. gunicorn src.main:server). Run from repo root.
 server = app.server
 
 
@@ -316,5 +316,5 @@ def toggle_about_modal(_about_n, _close_n, is_open):
     return no_update
 
 if __name__ == "__main__":
-    # Local: run from repo root with python -m src_plotly.main (so src_plotly imports work)
+    # Local: run from repo root with python -m src.main (so src imports work)
     app.run(debug=True)

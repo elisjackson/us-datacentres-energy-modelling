@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from src_plotly.results_accordion import (
+from src.results_accordion import (
     create_annual_generation_graph,
     create_costs_graph,
     create_optimal_capacities_graph,

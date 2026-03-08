@@ -182,57 +182,57 @@ if __name__ == "__main__":
     months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     days = None
 
-    all_zip_paths = []
-    for month in months:
-        try:
-            zip_path = main(country, year, month, days, download_only=True)
-            if zip_path is not None:
-                all_zip_paths.append(zip_path)
-        except Exception as e:
-            logger.error(f"Error processing {country} {year}-{month:02d}: {e}")
-            continue
+    # all_zip_paths = []
+    # for month in months:
+    #     try:
+    #         zip_path = main(country, year, month, days, download_only=True)
+    #         if zip_path is not None:
+    #             all_zip_paths.append(zip_path)
+    #     except Exception as e:
+    #         logger.error(f"Error processing {country} {year}-{month:02d}: {e}")
+    #         continue
 
-    # read all downloaded zip files, and combine them into a single dataset
-    ds_combined = None
-    for zip_path in all_zip_paths:
-        ds = md_process.read_era5_netcdf(zip_path)
+    # # read all downloaded zip files, and combine them into a single dataset
+    # ds_combined = None
+    # for zip_path in all_zip_paths:
+    #     ds = md_process.read_era5_netcdf(zip_path)
 
-        # debug - print counts of null and not null values for each variable
-        logger.debug(f"Zip file: {zip_path}")
-        for var in ds.data_vars:
-            logger.debug(f"{var}: {ds[var].isnull().sum().item()} null, {ds[var].notnull().sum().item()} not null")
+    #     # debug - print counts of null and not null values for each variable
+    #     logger.debug(f"Zip file: {zip_path}")
+    #     for var in ds.data_vars:
+    #         logger.debug(f"{var}: {ds[var].isnull().sum().item()} null, {ds[var].notnull().sum().item()} not null")
 
-        if ds_combined is None:
-            ds_combined = ds
-        else:
-            ds_combined = xr.concat([ds_combined, ds], dim="valid_time", join="outer")
+    #     if ds_combined is None:
+    #         ds_combined = ds
+    #     else:
+    #         ds_combined = xr.concat([ds_combined, ds], dim="valid_time", join="outer")
 
-    # debug - print counts of null and not null values for each variable
-    logger.debug(f"Combined dataset:")
-    for var in ds_combined.data_vars:
-        logger.debug(f"{var}: {ds_combined[var].isnull().sum().item()} null, {ds_combined[var].notnull().sum().item()} not null")
+    # # debug - print counts of null and not null values for each variable
+    # logger.debug(f"Combined dataset:")
+    # for var in ds_combined.data_vars:
+    #     logger.debug(f"{var}: {ds_combined[var].isnull().sum().item()} null, {ds_combined[var].notnull().sum().item()} not null")
 
-    # Convert accumulated radiation (J/m²) to flux (W/m²) using time step from valid_time
-    J_M2_VARS = ["ssrd", "fdir"]  # ERA5 variables in J/m² (accumulated)
-    if "valid_time" in ds_combined.coords:
-        diffs = np.diff(ds_combined.valid_time.values)
-        if len(diffs) > 0:
-            step_seconds = float(np.median(diffs).astype("timedelta64[s]").astype(np.float64))
-            if step_seconds > 0:
-                for var in J_M2_VARS:
-                    if var in ds_combined.data_vars:
-                        ds_combined = ds_combined.assign(
-                            **{
-                                var: (ds_combined[var] / step_seconds).assign_attrs(
-                                    units="W m**-2"
-                                )
-                            }
-                        )
+    # # Convert accumulated radiation (J/m²) to flux (W/m²) using time step from valid_time
+    # J_M2_VARS = ["ssrd", "fdir"]  # ERA5 variables in J/m² (accumulated)
+    # if "valid_time" in ds_combined.coords:
+    #     diffs = np.diff(ds_combined.valid_time.values)
+    #     if len(diffs) > 0:
+    #         step_seconds = float(np.median(diffs).astype("timedelta64[s]").astype(np.float64))
+    #         if step_seconds > 0:
+    #             for var in J_M2_VARS:
+    #                 if var in ds_combined.data_vars:
+    #                     ds_combined = ds_combined.assign(
+    #                         **{
+    #                             var: (ds_combined[var] / step_seconds).assign_attrs(
+    #                                 units="W m**-2"
+    #                             )
+    #                         }
+    #                     )
     
     data_dir = Path("data")
     zip_path = data_dir / "processed" / "by_country" / "era5_clipped" / f"{country}_{year}.zip"
-    logger.info(f"Saving combined dataset to zip: {zip_path}")
-    md_process.save_dataset_to_zip(ds_combined, zip_path, f"{country}_{year}.nc")
+    # logger.info(f"Saving combined dataset to zip: {zip_path}")
+    # md_process.save_dataset_to_zip(ds_combined, zip_path, f"{country}_{year}.nc")
 
     processed_dir = data_dir / "processed"
     processed_dir.mkdir(exist_ok=True)
