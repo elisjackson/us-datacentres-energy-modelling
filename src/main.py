@@ -317,4 +317,4 @@ def toggle_about_modal(_about_n, _close_n, is_open):
 
 if __name__ == "__main__":
     # Local: run from repo root with python -m src.main (so src imports work)
-    app.run(debug=True)
+    app.run(debug=False)
