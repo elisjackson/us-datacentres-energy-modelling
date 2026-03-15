@@ -5,7 +5,6 @@ Builds choropleth map from GeoJSON, handles country/radio updates, and click hig
 
 import copy
 import json
-import os
 from pathlib import Path
 
 import pandas as pd
@@ -14,13 +13,16 @@ import plotly.express as px
 import plotly.graph_objects as go
 from dash import Input, Output, State, no_update
 
-# GeoJSON dir: use DASH_DATA_DIR if set (e.g. in Plotly Cloud), else repo/data/processed
-DATA_DIR = Path(
-    os.environ.get(
-        "DASH_DATA_DIR",
-        str(Path(__file__).resolve().parent.parent / "data" / "processed"),
-    )
-)
+# GeoJSON files live in src/maps/
+MAPS_DIR = Path(__file__).resolve().parent / "maps"
+
+
+def _map_path(country: str) -> Path:
+    if country == "United Kingdom":
+        return MAPS_DIR / f"map_{country}_2025.geojson"
+    if country == "United States":
+        return MAPS_DIR / f"map_{country}_2025_01_01.geojson"
+    raise ValueError(f"Country {country} not supported")
 
 
 def _center_from_geojson(geojson):
@@ -80,7 +82,7 @@ _gdf_cache = {}
 def _get_gdf_data(country: str):
     """Load GDF once per country, cache result."""
     cache_key = country
-    filepath = DATA_DIR / f"map_{country}_2025.geojson"
+    filepath = _map_path(country)
 
     if cache_key in _gdf_cache:
         return _gdf_cache[cache_key]
@@ -331,13 +333,7 @@ def _apply_relayout_to_fig_dict(fig_dict, relayout_data, country_changed):
 
 def make_base_figure(radio_selection, country, geo_data=None):
     """Resolve geo_data and max_wind_speed for the current radio/country. Returns (geo_data, max_wind_speed)."""
-    if country == "United Kingdom":
-        filepath = DATA_DIR / f"map_{country}_2025.geojson"
-    elif country == "United States":
-        filepath = DATA_DIR / f"map_{country}_2025_01_01.geojson"
-    else:
-        raise ValueError(f"Country {country} not supported")
-    filepath = str(filepath)
+    filepath = str(_map_path(country))
     if radio_selection == "Wind":
         color_on = "wind_speed_100"
     elif radio_selection == "PV":
@@ -354,10 +350,7 @@ def make_base_figure(radio_selection, country, geo_data=None):
 def prewarm_geo_cache():
     """Load and cache geo data for all (country, metric) combinations at startup so the first user gets a hot cache."""
     for country in ["United Kingdom"]:
-        if country == "United Kingdom":
-            filepath = str(DATA_DIR / f"map_{country}_2025.geojson")
-        else:
-            filepath = str(DATA_DIR / f"map_{country}_2025_01_01.geojson")
+        filepath = str(_map_path(country))
         for color_on in ("wind_speed_100", "ssrd"):
             _get_geo_data(filepath, color_on, country)
 
@@ -429,9 +422,7 @@ def register_callbacks(app):
                 if center is not None and zoom is not None:
                     layout.setdefault(subplot, {}).update(center=center, zoom=zoom)
                     break
-        filepath = str(DATA_DIR / f"map_{country}_2025.geojson")
-        if country == "United States":
-            filepath = str(DATA_DIR / f"map_{country}_2025_01_01.geojson")
+        filepath = str(_map_path(country))
         geo_pv = _get_geo_data(filepath, "ssrd", country)
         geo_wind = _get_geo_data(filepath, "wind_speed_100", country)
         for stored_click, gdata, color_on in [

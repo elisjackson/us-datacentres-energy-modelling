@@ -8,13 +8,17 @@ from dash.exceptions import PreventUpdate
 from pathlib import Path
 from typing import List, Literal
 
-import src.optimiser_api as optimiser_api
+# Local imports
+try:
+    import src.optimiser_api as optimiser_api
+except ImportError:
+    import optimiser_api as optimiser_api
 
 DIR = Path(__file__).parent
 CONFIG_DIR = DIR / "config"
 
 # Fallback map coordinates when no solar/wind location is selected (used by optimiser and modal warning).
-DEFAULT_MAP_LOCATION = {"lat": 51.2068, "lon": -3.1424}
+DEFAULT_MAP_LOCATION = {"lat": 54.00366, "lon": -2.54786}
 
 class GenerationInput():
     """
@@ -488,7 +492,7 @@ def form_layout():
                                 id="optimiser-loading-modal-message",
                                 children=[
                                     dbc.Spinner(color="primary", size="sm", spinner_class_name="me-2"),
-                                    " Running optimisation…",
+                                    " Queued for optimisation",
                                 ],
                                 className="d-flex align-items-center",
                             ),
@@ -833,7 +837,7 @@ def register_callbacks(app):
     # Default content for loading modal (reset when modal opens)
     _loading_modal_default = [
         dbc.Spinner(color="primary", size="sm", spinner_class_name="me-2"),
-        " Running optimisation…",
+        " Queued for optimisation",
     ]
 
     # Optimise button: open loading modal and trigger run
@@ -873,18 +877,18 @@ def register_callbacks(app):
         use_default_wind = wind_active and not valid_wind
 
         default_loc_str = f"{DEFAULT_MAP_LOCATION['lat']}°N, {DEFAULT_MAP_LOCATION['lon']}°W"
-        warning_text = "No map location selected. Using a default location "
+        # warning_text = "No map location"
         if use_default_solar and use_default_wind:
-            warning_text += f"({default_loc_str}) for Solar and Wind."
+            warning_text = f"No Solar and Wind map locations selected."
         elif use_default_solar:
-            warning_text += f"({default_loc_str}) for Solar."
+            warning_text = f"No Solar map location selected."
         elif use_default_wind:
-            warning_text += f"({default_loc_str}) for Wind."
+            warning_text = f"No Wind map location selected."
         else:
             warning_text = None
 
         if warning_text:
-            warning_text += " (There might be some spare grid capacity here for a few years)."
+            warning_text += f" Using default location ({default_loc_str})."
             warning_children = html.Div(warning_text, className="text-warning mb-2")
             message_children = html.Div(
                 _loading_modal_default,
@@ -1252,31 +1256,42 @@ def register_callbacks(app):
         if job_status in {"done", "error"}:
             if results_fetched_job_id == job_id:
                 return None, True, False, "accordion-results", no_update, _loading_modal_default, no_update
-            if job_status == "done":
-                try:
-                    optimiser_results = optimiser_api.get_job_result(job_id)
-                except Exception as e:
-                    logging.exception("Optimiser result fetch failed")
-                    optimiser_results = {
-                        "status": "error",
-                        "message": str(e),
-                    }
-                return None, True, False, "accordion-results", optimiser_results, _loading_modal_default, job_id
-            else:
-                try:
-                    optimiser_results = optimiser_api.get_job_result(job_id)
-                except Exception:
-                    optimiser_results = {
-                        "status": "error",
-                        "message": status.get("message", "Optimisation failed."),
-                    }
-                return None, True, False, "accordion-results", optimiser_results, _loading_modal_default, job_id
+            # Stop polling immediately; do not fetch here. A separate callback fetches the result
+            # so that duplicate interval ticks (before disabled=True is applied) don't cause
+            # duplicate GET optimise-status / GET optimise-result calls.
+            return None, True, False, "accordion-results", no_update, no_update, job_id
 
         optimiser_results = {
             "status": "error",
             "message": f"Unexpected optimiser job status: {job_status}",
         }
         return None, True, False, "accordion-results", optimiser_results, _loading_modal_default, no_update
+
+    @app.callback(
+        Output("optimiser-results-data", "data", allow_duplicate=True),
+        Output("optimiser-loading-modal", "is_open", allow_duplicate=True),
+        Output("optimiser-loading-modal-message", "children", allow_duplicate=True),
+        Input("optimiser-results-fetched-job-id", "data"),
+        State("optimiser-results-data", "data"),
+        prevent_initial_call=True,
+    )
+    def fetch_optimiser_result_when_ready(job_id, existing_results):
+        """Fetch job result when poll callback has set results_fetched_job_id. Idempotent: if we
+        already have results for this job_id (e.g. from a duplicate trigger), skip the API call."""
+        if not job_id:
+            raise PreventUpdate
+        if isinstance(existing_results, dict) and existing_results.get("_job_id") == job_id:
+            return no_update, no_update, no_update
+        try:
+            optimiser_results = optimiser_api.get_job_result(job_id)
+        except Exception as e:
+            logging.exception("Optimiser result fetch failed")
+            optimiser_results = {
+                "status": "error",
+                "message": str(e),
+            }
+        optimiser_results["_job_id"] = job_id
+        return optimiser_results, False, _loading_modal_default
 
 
 # For standalone testing

@@ -11,13 +11,23 @@ import pandas as pd
 _about_md_path = Path(__file__).resolve().parent / "about.md"
 ABOUT_MD = _about_md_path.read_text(encoding="utf-8") if _about_md_path.exists() else "About content not found."
 
-import src.map_callbacks as map_callbacks
-import src.wind_profile as wind_profile
-import src.solar_data_table as solar_data_table
-import src.parameters_form as parameters_form
-from src.solar_data_table import solar_data_table_footer
-from src.parameters_form import form_layout
-from src.results_accordion import results_layout, register_callbacks as results_register_callbacks
+# Local imports
+try:
+    import src.map_callbacks as map_callbacks
+    import src.wind_profile as wind_profile
+    import src.solar_data_table as solar_data_table
+    import src.parameters_form as parameters_form
+    from src.solar_data_table import solar_data_table_footer
+    from src.parameters_form import form_layout
+    from src.results_accordion import results_layout, register_callbacks as results_register_callbacks
+except ImportError:
+    import map_callbacks as map_callbacks
+    import wind_profile as wind_profile
+    import solar_data_table as solar_data_table
+    import parameters_form as parameters_form
+    from solar_data_table import solar_data_table_footer
+    from parameters_form import form_layout
+    from results_accordion import results_layout, register_callbacks as results_register_callbacks
 
 external_stylesheets = [
     dbc.themes.DARKLY,
@@ -152,7 +162,7 @@ accordion = dbc.Accordion(
                                                             className="h4"
                                                         ),
                                                         dcc.Store(id="era5-wind-height", data=100),
-                                                        dcc.Store(id="hub-heights", data={"onshore": 150, "offshore": 200}),
+                                                        dcc.Store(id="hub-heights", data={"onshore": 100, "offshore": 150}),
                                                         html.Div(
                                                             [
                                                                 html.Div(

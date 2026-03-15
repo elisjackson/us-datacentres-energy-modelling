@@ -2,12 +2,21 @@ from __future__ import annotations
 
 import unittest
 
-from src.results_accordion import (
+# Local imports
+try:
+    from src.results_accordion import (
     create_annual_generation_graph,
     create_costs_graph,
     create_optimal_capacities_graph,
     create_timeseries_plot,
 )
+except ImportError:
+    from results_accordion import (
+        create_annual_generation_graph,
+        create_costs_graph,
+        create_optimal_capacities_graph,
+        create_timeseries_plot,
+    )
 
 
 SAMPLE_RESULT = {

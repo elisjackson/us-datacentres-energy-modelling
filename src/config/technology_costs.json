@@ -453,18 +453,18 @@
                     "values": [
                         {
                             "name": "Low",
-                            "value": 1249,
-                            "source": "NREL, 2023, 4-hour battery"
+                            "value": 361,
+                            "source": "Ember Energy, 2025"
                         },
                         {
                             "name": "Mid",
-                            "value": 1560,
-                            "source": "NREL, 2023, 4-hour battery"
+                            "value": 619,
+                            "source": "... average ..."
                         },
                         {
                             "name": "High",
-                            "value": 1996,
-                            "source": "NREL, 2023, 4-hour battery"
+                            "value": 877,
+                            "source": "Haush..."
                         }
                     ]
                 }
