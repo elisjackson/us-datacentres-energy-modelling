@@ -158,7 +158,7 @@ def _get_geo_data(filepath, color_on, country):
         zoom = 2.5
     else:
         center = _center_from_geojson(geojson)
-        zoom = 3.5
+        zoom = 3
 
     # Don't pass label for color axis so Express doesn't set colorbar title (we use overlay)
     base_fig = px.choropleth_map(
@@ -194,7 +194,7 @@ def _get_geo_data(filepath, color_on, country):
         colorbar=dict(
             bgcolor="rgba(0,0,0,0)",
             bordercolor="rgba(0,0,0,0)",
-            tickfont=dict(color="#e0e0e0"),
+            tickfont=dict(color="#e0e0e0", size=10),
             title=None,
         ),
         selector=dict(type="choroplethmap"),

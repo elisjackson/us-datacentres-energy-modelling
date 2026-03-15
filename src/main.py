@@ -97,7 +97,7 @@ accordion = dbc.Accordion(
                                 dcc.Store(id="wind-latlon-store"),
                                 html.Div(
                                     [
-                                        html.Div("Some text", className="map-helper-overlay text-label-blue", id="map-helper-text"),
+                                        html.Div("", className="map-helper-overlay text-label-blue", id="map-helper-text"),
                                         dcc.Graph(
                                             id="map",
                                             className="map-graph",
@@ -259,7 +259,7 @@ app_header = html.Div(
     [
         html.Div(
             [
-                html.H1("Datacentre energy optimiser", className="app-header-title"),
+                html.H1("Microgrid datacentre energy optimiser", className="app-header-title"),
                 dbc.Button("About", id="about-button", outline=True, color="secondary", className="about-btn rounded-pill px-3"),
                 html.Div(
                     [

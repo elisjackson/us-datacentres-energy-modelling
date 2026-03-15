@@ -342,27 +342,29 @@ html {
     text-align: right;
 }
 .map-graph {
-    height: 400px;
+    height: 300px;
+    max-height: 300px;
 }
 @media (max-width: 991px) {
-    .map-graph { height: 320px; }
+    .map-graph { height: 260px; max-height: 260px; }
 }
 @media (max-width: 767px) {
     .map-graph {
         height: auto;
+        max-height: 260px;
         aspect-ratio: 4 / 3;
     }
 }
 
 /* Map graph: dark background before figure is loaded (hydration gap fallback) */
 #map {
-    background-color: rgb(10, 20, 36) !important;
+    background-color: rgb(5, 13, 24) !important;
     border-radius: 4px;
 }
 #map .js-plotly-plot,
 #map .plot-container,
 #map .svg-container {
-    background-color: rgb(10, 20, 36) !important;
+    background-color: rgb(5, 13, 24) !important;
 }
 
 /* Hide any colorbar title (we use .map-colorbar-title overlay); fallback if Plotly still renders one */
@@ -377,6 +379,7 @@ html {
 #map .cbaxis text {
     fill: #e0e0e0 !important;
     color: #e0e0e0 !important;
+    font-size: 10px !important;
 }
 
 /* Optimiser form: row disabled state + native range slider track visibility */
@@ -852,9 +855,9 @@ html {
 .wind-profile-figure-wrapper {
     width: 100%;
     /* max-width: 280px; */
-    max-height: 250px;
+    max-height: 200px;
     aspect-ratio: 3 / 4;
-    min-height: 160px;
+    min-height: 130px;
 }
 .wind-profile-figure-wrapper .dash-graph {
     height: 100%;
@@ -923,7 +926,7 @@ html {
     .solar-wind-data-row .wind-profile-figure-wrapper {
         width: 100%;
         max-width: 100%;
-        max-height: 220px;
+        max-height: 180px;
         aspect-ratio: 16 / 9;
         align-self: stretch;
     }

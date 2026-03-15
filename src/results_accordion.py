@@ -1,4 +1,5 @@
 import json
+import math
 from typing import Literal
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -11,6 +12,24 @@ DEBUG_PRINT_TO_TERMINAL = True  # Set False to disable server-side print when St
 DIR = Path(__file__).parent
 COLOR_CONFIG_PATH = DIR / "config" / "chart_color_mapping.json"
 DEFAULT_TECH_COLOR = "#95a5a6"
+
+
+def _is_nan_key(k) -> bool:
+    """True if key should be excluded from charts (NaN, None, or string 'nan')."""
+    if k is None:
+        return True
+    if isinstance(k, float) and math.isnan(k):
+        return True
+    if isinstance(k, str) and str(k).strip().lower() == "nan":
+        return True
+    return False
+
+
+def _drop_nan_keys(d: dict) -> dict:
+    """Return a copy of the dict with NaN-like keys removed."""
+    if not d:
+        return d
+    return {k: v for k, v in d.items() if not _is_nan_key(k)}
 
 
 def _normalize_technology_key(name: str) -> str:
@@ -158,6 +177,7 @@ def create_timeseries_plot(timeseries: dict = None):
         )
         return fig
 
+    timeseries = _drop_nan_keys(timeseries)
     for generator, values in timeseries.items():
         fig.add_trace(
             go.Scatter(
@@ -200,6 +220,17 @@ def create_optimal_capacities_graph(capacities: dict = None):
         )
         return fig
 
+    capacities = _drop_nan_keys(capacities)
+    if not capacities:
+        fig.update_layout(
+            **_fig_layout(
+                xaxis_title="Generator / storage",
+                yaxis_title="Capacity (MW)",
+                show_placeholder=True,
+            )
+        )
+        return fig
+
     capacity_keys = list(capacities.keys())
     fig.add_bar(
         x=capacity_keys,
@@ -224,6 +255,30 @@ def create_annual_generation_graph(annual_generation: dict = None):
     y_axis_title = "Annual generation (GWh)"
 
     if annual_generation is None or not annual_generation:
+        fig.update_layout(
+            **_fig_layout(
+                xaxis_title=x_axis_title,
+                yaxis_title=y_axis_title,
+                show_placeholder=False,
+            )
+        )
+        fig.update_layout(
+            annotations=[
+                dict(
+                    text="No data",
+                    x=0.5,
+                    y=0.5,
+                    xref="paper",
+                    yref="paper",
+                    showarrow=False,
+                    font=dict(color="#95a5a6", size=14),
+                )
+            ]
+        )
+        return fig
+
+    annual_generation = _drop_nan_keys(annual_generation)
+    if not annual_generation:
         fig.update_layout(
             **_fig_layout(
                 xaxis_title=x_axis_title,
@@ -282,10 +337,10 @@ def create_costs_graph(costs: dict = None):
         )
         return fig
 
-    capex = costs.get("capex") or {}
-    opex = costs.get("opex") or {}
-    energy_cost = costs.get("energy_cost") or {}
-    co2_cost = costs.get("co2_cost") or {}
+    capex = _drop_nan_keys(costs.get("capex") or {})
+    opex = _drop_nan_keys(costs.get("opex") or {})
+    energy_cost = _drop_nan_keys(costs.get("energy_cost") or {})
+    co2_cost = _drop_nan_keys(costs.get("co2_cost") or {})
     carriers = list(capex.keys())
 
     if not carriers:
