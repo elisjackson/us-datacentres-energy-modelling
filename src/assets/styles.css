@@ -8,6 +8,10 @@ body {
     --Dash-Fill-Interactive-Strong: rgb(5, 13, 24);
 }
 
+html {
+    font-size: 12px;
+}
+
 /* Reusable muted blue label text */
 .text-label-blue {
     color: #8aaccc;
@@ -46,12 +50,14 @@ body {
     margin-bottom: 0 !important;
 }
 
-/* Header: two columns; button is absolutely centered on wide, flows right on narrow */
+/* Header: two columns; sticky on scroll; left takes remaining space, right fits icons */
 .app-header {
-    position: relative;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
     flex-shrink: 0;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     width: 100%;
     min-height: 3rem;
@@ -60,13 +66,12 @@ body {
     padding: 0.75rem 1rem;
     border-bottom: 1px solid #25344c;
 }
-.app-header .about-btn {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-}
 .header-left {
     min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
 }
 .header-left .app-header-title {
     white-space: nowrap;
@@ -79,12 +84,6 @@ body {
     align-items: center;
     gap: 0.75rem;
 }
-@media (max-width: 992px) {
-    .app-header .about-btn {
-        position: static;
-        transform: none;
-    }
-}
 .app-header-title {
     margin: 0;
     font-size: 1.5rem;
@@ -95,6 +94,42 @@ body {
 .content {
     padding: 2rem 2rem;
     padding-top: 1rem;
+}
+
+/* Header summary metrics box (label + annualised cost + total emissions) */
+.header-summary-metrics-label {
+    color: white;
+    font-size: 0.875rem;
+}
+.header-summary-metrics-box {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    background-color: #0f1419;
+    border-radius: 0.5rem;
+    padding: 0.35rem 0.75rem;
+}
+
+/* Header summary metrics (annualised cost, total emissions) */
+.header-summary-metric {
+    color: #93cc8a;
+    font-size: 0.875rem;
+    margin-left: 0.25rem;
+}
+.header-summary-metrics-box .header-summary-metric:nth-child(2) {
+    margin-left: 0;
+}
+.header-summary-metric:not(:first-of-type) {
+    border-left: 1px solid #25344c;
+    padding-left: 0.75rem;
+    margin-left: 0;
+}
+
+/* Hide header results summary on narrow screens (disappear instead of wrap) */
+@media (max-width: 768px) {
+    .header-summary-metrics-box {
+        display: none !important;
+    }
 }
 
 /* About button: outline only, same effective bg as app so it stays subtle */
@@ -599,6 +634,7 @@ body {
     flex: 0 0 auto;
     width: 100%;
     max-width: 22rem;
+    align-self: start;
 }
 .cost-columns-row > .assumptions-flex-col {
     flex: 1 1 0;
@@ -912,4 +948,11 @@ body {
 #optimise-button:disabled {
     opacity: 0.4 !important;
     cursor: not-allowed !important;
+}
+
+/* Warning above Optimise button: slightly less tall */
+#optimise-button-warning .alert {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
 }

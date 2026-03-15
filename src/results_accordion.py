@@ -96,15 +96,15 @@ def _fig_layout(xaxis_title: str, yaxis_title: str, show_placeholder=False):
         font=dict(color="#e0e0e0"),
         title_font=dict(color="#e0e0e0"),
         xaxis=dict(
-            tickfont=dict(color="#e0e0e0"),
-            title_font=dict(color="#e0e0e0"),
+            tickfont=dict(color="#e0e0e0", size=10),
+            title_font=dict(color="#e0e0e0", size=10),
             gridcolor="rgba(255,255,255,0.1)",
             zerolinecolor="rgba(255,255,255,0.2)",
             fixedrange=True,
         ),
         yaxis=dict(
-            tickfont=dict(color="#e0e0e0"),
-            title_font=dict(color="#e0e0e0"),
+            tickfont=dict(color="#e0e0e0", size=10),
+            title_font=dict(color="#e0e0e0", size=10),
             gridcolor="rgba(255,255,255,0.1)",
             zerolinecolor="rgba(255,255,255,0.2)",
             fixedrange=True,
@@ -411,22 +411,6 @@ def results_layout():
     return html.Div(
         [
             dcc.Store(id="optimiser-results-data"),  # In-memory only; storage_type="local" can cause "Maximum update depth exceeded" with dependent callbacks
-            dbc.Collapse(
-                [
-                    html.H6("Results Store (debug)", className="mt-3 mb-2"),
-                    html.Div(id="optimiser-results-debug-content"),
-                ],
-                id="optimiser-results-debug-collapse",
-                is_open=False,
-            ),
-            dbc.Button(
-                "Show / hide results data (debug)",
-                id="optimiser-results-debug-toggle",
-                color="secondary",
-                size="sm",
-                outline=True,
-                className="mt-2",
-            ),
             dbc.Row(
                 [
                     dbc.Col(create_card("Data centre capacity", 1000), id="data-centre-capacity-card"),
@@ -506,7 +490,7 @@ def results_layout():
 
 
 def register_callbacks(app):
-    """Register callbacks for the results accordion (debug display + any future results UI)."""
+    """Register callbacks for the results accordion."""
 
     @app.callback(
         Output("timeseries-fig", "figure"),
@@ -595,33 +579,3 @@ def register_callbacks(app):
             create_card("Annualised cost", data.get("total_cost", 0), "$", unit_location="left"),
             create_card("Total emissions", data.get("total_emissions", 0), "tCO₂"),
         )
-
-    @app.callback(
-        Output("optimiser-results-debug-content", "children"),
-        Input("optimiser-results-data", "data"),
-    )
-    def _show_results_store_for_debugging(data):
-        if data is None:
-            summary = "No data"
-            return html.Pre(summary, className="text-muted small")
-
-        summary = "Keys: " + ", ".join(data.keys())
-        try:
-            full_json_text = json.dumps(data, indent=2, default=str)
-        except (TypeError, ValueError):
-            full_json_text = str(data)
-        return html.Div(
-            [
-                html.Pre(summary, className="text-muted small"),
-                html.Pre(full_json_text, style={"maxHeight": "400px", "overflow": "auto", "fontSize": "12px"})
-            ]
-        )
-
-    @app.callback(
-        Output("optimiser-results-debug-collapse", "is_open"),
-        Input("optimiser-results-debug-toggle", "n_clicks"),
-        State("optimiser-results-debug-collapse", "is_open"),
-        prevent_initial_call=True,
-    )
-    def _toggle_debug_collapse(n_clicks, is_open):
-        return not is_open

@@ -258,14 +258,22 @@ header_links = html.Div(
 app_header = html.Div(
     [
         html.Div(
-            html.H1("Datacentre energy optimiser", className="app-header-title"),
+            [
+                html.H1("Datacentre energy optimiser", className="app-header-title"),
+                dbc.Button("About", id="about-button", outline=True, color="secondary", className="about-btn rounded-pill px-3"),
+                html.Div(
+                    [
+                        html.Span("Results: ", className="header-summary-metrics-label"),
+                        html.Span("$ —", id="header-annualised-cost", className="header-summary-metric"),
+                        html.Span("— tCO₂", id="header-total-emissions", className="header-summary-metric"),
+                    ],
+                    className="header-summary-metrics-box",
+                ),
+            ],
             className="header-left",
         ),
         html.Div(
-            [
-                dbc.Button("About", id="about-button", outline=True, color="secondary", className="about-btn rounded-pill px-3"),
-                header_links,
-            ],
+            header_links,
             className="header-right",
         ),
     ],
@@ -307,6 +315,23 @@ app.layout = dbc.Container(
     fluid=True,
     className="app-container",
 )
+
+
+@app.callback(
+    [
+        Output("header-annualised-cost", "children"),
+        Output("header-total-emissions", "children"),
+    ],
+    Input("optimiser-results-data", "data"),
+)
+def update_header_summary(data):
+    if data is None:
+        return "$ —", "— tCO₂"
+    total_cost = data.get("total_cost", 0)
+    total_emissions = data.get("total_emissions", 0)
+    cost_str = f"$ {round(total_cost):,}/yr"
+    emissions_str = f"{round(total_emissions):,} tCO₂/yr"
+    return cost_str, emissions_str
 
 
 @app.callback(

@@ -60,9 +60,9 @@ class GenerationInput():
         self.has_cost_assumptions = not self.cost_assumptions_df.empty
         
         for subtype in self.subtypes:
-            self.cost_choice_params[subtype] = self.cost_choices_df[
-                self.cost_choices_df["subtype"] == subtype
-            ]["cost_parameter"].unique()
+            self.cost_choice_params[subtype] = [
+                c["name"] for c in self.config[subtype].get("cost_choices", [])
+            ]
             
             # Calculate number of columns (cost choices + assumptions column if exists)
             num_cost_params = len(self.cost_choice_params[subtype])
@@ -144,6 +144,8 @@ class GenerationInput():
                         'value': value['value'],
                         'source': value['source']
                     })
+        if not rows:
+            return pd.DataFrame(columns=['subtype', 'cost_parameter', 'unit', 'level', 'value', 'source'])
         return pd.DataFrame(rows)
 
     def build_all_cost_columns(self, subtype: str, saved_selections=None) -> List[dbc.Row]:
@@ -181,6 +183,7 @@ class GenerationInput():
                     disabled=input_disabled,
                     className=input_class,
                     id={"type": "cost-value-input", "card": self.card_id, "subtype": selected_subtype, "param": cost_parameter, "level": level},
+                    min=0,
                 ),
                 width=self.INPUT_COL_WIDTH,
             ),
@@ -197,16 +200,23 @@ class GenerationInput():
             (self.cost_choices_df["cost_parameter"] == cost_parameter)
         ]
 
-        unit = df["unit"].unique()[0]
-
-        # Prefer "Mid" as default selection when available, otherwise fallback to first level.
-        default_level = None
-        for level in df["level"].tolist():
-            if str(level).strip().lower() == "mid":
-                default_level = level
-                break
-        if default_level is None and not df.empty:
-            default_level = df.iloc[0]["level"]
+        if df.empty:
+            unit = ""
+            for c in self.config[selected_subtype].get("cost_choices", []):
+                if c["name"] == cost_parameter:
+                    unit = c.get("unit", "")
+                    break
+            default_level = "Custom"
+        else:
+            unit = df["unit"].unique()[0]
+            # Prefer "Mid" as default selection when available, otherwise fallback to first level.
+            default_level = None
+            for level in df["level"].tolist():
+                if str(level).strip().lower() == "mid":
+                    default_level = level
+                    break
+            if default_level is None:
+                default_level = df.iloc[0]["level"]
 
         available_levels = set(df["level"].tolist())
         available_levels.add("Custom")
@@ -242,12 +252,15 @@ class GenerationInput():
         )
         
         # Build source attribution text
-        sources = df[["level", "source"]].drop_duplicates()
-        if sources["source"].nunique() == 1:
-            source_text = f"Source: {sources['source'].iloc[0]}"
+        if df.empty:
+            source_text = ""
         else:
-            parts = [f"{row['level']}: {row['source']}" for _, row in sources.iterrows()]
-            source_text = f"Source: {'; '.join(parts)}"
+            sources = df[["level", "source"]].drop_duplicates()
+            if sources["source"].nunique() == 1:
+                source_text = f"Source: {sources['source'].iloc[0]}"
+            else:
+                parts = [f"{row['level']}: {row['source']}" for _, row in sources.iterrows()]
+                source_text = f"Source: {'; '.join(parts)}"
 
         # Label row on top, level rows below, source at the bottom
         return html.Div([
@@ -329,12 +342,13 @@ with open(CONFIG_DIR / "technology_costs.json", "r") as f:
 
 # grid_electricity_card = GenerationInput("Grid Electricity", initial_open=True)
 wind_card = GenerationInput("Wind")
-solar_card = GenerationInput("Solar")
+solar_card = GenerationInput("Solar", initial_open=True)
 gas_card = GenerationInput("Gas")
 smr_card = GenerationInput("SMR")
 battery_storage_card = GenerationInput("Battery storage")
 co2_card = GenerationInput("Carbon price")
 generation_cards = [solar_card, wind_card, gas_card, smr_card]
+GENERATION_CARDS_ACTIVE_BY_DEFAULT = (solar_card, wind_card, gas_card)
 generation_card_ids = [card.card_id for card in generation_cards]
 # Store cards by ID for callback access (include battery storage and CO2 for callbacks)
 generation_cards_dict = {card.card_id: card for card in generation_cards}
@@ -380,8 +394,8 @@ def form_layout():
                                         card.title,
                                         id={"type": "generation-pill", "index": card.card_id},
                                         color="primary",
-                                        outline=(card != wind_card),
-                                        active=(card == wind_card),
+                                        outline=(card not in GENERATION_CARDS_ACTIVE_BY_DEFAULT),
+                                        active=(card in GENERATION_CARDS_ACTIVE_BY_DEFAULT),
                                         className="rounded-pill me-2 px-3",
                                     )
                                     for card in generation_cards
@@ -432,7 +446,7 @@ def form_layout():
                             width=12,
                         ),
                         id={"type": "generation-card-col", "index": card.card_id},
-                        className="card-container-animated " + ("card-visible" if card == wind_card else "card-hidden"),
+                        className="card-container-animated " + ("card-visible" if card in GENERATION_CARDS_ACTIVE_BY_DEFAULT else "card-hidden"),
                     )
                     for card in generation_cards
                 ],
@@ -459,6 +473,8 @@ def form_layout():
                 id="co2-card-container",
                 className="card-container-animated card-hidden"  # Hidden by default with animation
             ),
+            # Warning box above Optimise button (shown only when button is inactive)
+            html.Div(id="optimise-button-warning", children=[], style={"display": "none"}),
             # Optimise button at the bottom
             dbc.Row(
                 [
@@ -467,7 +483,7 @@ def form_layout():
                             "Optimise",
                             id="optimise-button",
                             color="primary",
-                            className="w-100 mt-4",
+                            className="w-100 mt-2",
                             disabled=False,  # Will be controlled by callback
                         ),
                         width=12,
@@ -823,15 +839,75 @@ def register_callbacks(app):
     
     @app.callback(
         Output("optimise-button", "disabled"),
+        Output("optimise-button-warning", "children"),
+        Output("optimise-button-warning", "style"),
         Input({"type": "generation-pill", "index": ALL}, "active"),
+        Input({"type": "cost-level-btn", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "active"),
+        Input({"type": "cost-value-input", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "value"),
+        State({"type": "generation-pill", "index": ALL}, "id"),
+        State({"type": "cost-level-btn", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "id"),
+        State({"type": "cost-value-input", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "id"),
     )
-    def update_optimise_button(pill_active_states):
-        """Enable Optimise button only if at least one generation source is selected."""
-        # Check if at least one pill is active
-        has_active = any(pill_active_states)
-        is_disabled = not has_active
-        
-        return is_disabled
+    def update_optimise_button(
+        pill_active_states,
+        cost_btn_active,
+        cost_input_values,
+        pill_ids,
+        cost_btn_ids,
+        cost_input_ids,
+    ):
+        """Disable Optimise if no generation selected, or if any active card has Custom with value 0 or empty. Show warning when disabled."""
+        # Active generation card ids (solar, wind, gas, SMR only)
+        if pill_ids is None:
+            active_gen_card_ids = set()
+        else:
+            active_gen_card_ids = {
+                pid["index"]
+                for active, pid in zip(pill_active_states or [], pill_ids)
+                if active and pid.get("index") in generation_card_ids
+            }
+        has_active = len(active_gen_card_ids) > 0
+        if not has_active:
+            return True, dbc.Alert(
+                "⚠️ Select at least one generation source to run the optimiser.",
+                style={
+                    "backgroundColor": "#09131f",
+                    "color": "#ecf0f1",
+                    "border": "solid",
+                    "borderColor": "#ffea5dc2",
+                    "borderWidth": "thin",
+                },
+            ), {}
+        # Check for Custom selected with value 0 or empty in any active generation card
+        if cost_btn_ids is None or cost_input_ids is None:
+            return False, [], {"display": "none"}
+        for btn_active, btn_id in zip(cost_btn_active or [], cost_btn_ids):
+            if btn_id.get("card") not in active_gen_card_ids:
+                continue
+            if btn_id.get("level") != "Custom" or not btn_active:
+                continue
+            # Find matching input value
+            for j, inp_id in enumerate(cost_input_ids):
+                if (
+                    inp_id.get("card") == btn_id.get("card")
+                    and inp_id.get("subtype") == btn_id.get("subtype")
+                    and inp_id.get("param") == btn_id.get("param")
+                    and inp_id.get("level") == btn_id.get("level")
+                ):
+                    val = cost_input_values[j] if cost_input_values and j < len(cost_input_values) else None
+                    if val is None or val == "" or (isinstance(val, (int, float)) and val == 0):
+                        return True, dbc.Alert(
+                "⚠️ Enter a value greater than 0 for all Custom cost options in the active generation cards.",
+                style={
+                    "backgroundColor": "#09131f",
+                    "color": "#ecf0f1",
+                    "border": "solid",
+                    "borderColor": "#ffea5dc2",
+                    "borderWidth": "thin",
+                },
+            ), {}
+                    break
+        return False, [], {"display": "none"}
     
     
     # Default content for loading modal (reset when modal opens)

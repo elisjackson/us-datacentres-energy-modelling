@@ -44,16 +44,16 @@ def make_empty_wind_profile_figure():
         yaxis_title="Height (m)",
         xaxis=dict(
             range=[0, 15],
-            tickfont=dict(color="#e0e0e0"),
-            title_font=dict(color="#e0e0e0"),
+            tickfont=dict(color="#e0e0e0", size=10),
+            title_font=dict(color="#e0e0e0", size=10),
             gridcolor="rgba(255,255,255,0.1)",
             zerolinecolor="rgba(255,255,255,0.2)",
             fixedrange=True,
         ),
         yaxis=dict(
             range=[0, 250],
-            tickfont=dict(color="#e0e0e0"),
-            title_font=dict(color="#e0e0e0"),
+            tickfont=dict(color="#e0e0e0", size=10),
+            title_font=dict(color="#e0e0e0", size=10),
             gridcolor="rgba(255,255,255,0.1)",
             zerolinecolor="rgba(255,255,255,0.2)",
             fixedrange=True,
@@ -96,8 +96,8 @@ def make_wind_profile_figure(heights, wind_speeds, x_max=None, era5_wind_height=
         )
     )
     xaxis = dict(
-        tickfont=dict(color="#e0e0e0"),
-        title_font=dict(color="#e0e0e0"),
+        tickfont=dict(color="#e0e0e0", size=10),
+        title_font=dict(color="#e0e0e0", size=10),
         gridcolor="rgba(255,255,255,0.1)",
         zerolinecolor="rgba(255,255,255,0.2)",
         fixedrange=True,
@@ -115,8 +115,8 @@ def make_wind_profile_figure(heights, wind_speeds, x_max=None, era5_wind_height=
         title_font=dict(color="#e0e0e0"),
         xaxis=xaxis,
         yaxis=dict(
-            tickfont=dict(color="#e0e0e0"),
-            title_font=dict(color="#e0e0e0"),
+            tickfont=dict(color="#e0e0e0", size=10),
+            title_font=dict(color="#e0e0e0", size=10),
             gridcolor="rgba(255,255,255,0.1)",
             zerolinecolor="rgba(255,255,255,0.2)",
             fixedrange=True,

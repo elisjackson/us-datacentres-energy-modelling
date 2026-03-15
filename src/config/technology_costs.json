@@ -201,14 +201,19 @@
                     "unit": "USD/MWh",
                     "values": [
                         {
+                            "name": "Low",
+                            "value": 23,
+                            "source": "5-year low price"
+                        },
+                        {
                             "name": "Mid",
-                            "value": 30,
-                            "source": "ELIS"
+                            "value": 39,
+                            "source": "1-year average price"
                         },
                         {
                             "name": "High",
-                            "value": 40,
-                            "source": "ELIS"
+                            "value": 67,
+                            "source": "March 2026 high"
                         }
                     ]
                 }
@@ -288,14 +293,19 @@
                     "unit": "USD/MWh",
                     "values": [
                         {
+                            "name": "Low",
+                            "value": 23,
+                            "source": "5-year low price"
+                        },
+                        {
                             "name": "Mid",
-                            "value": 30,
-                            "source": "ELIS"
+                            "value": 39,
+                            "source": "1-year average price"
                         },
                         {
                             "name": "High",
-                            "value": 40,
-                            "source": "ELIS"
+                            "value": 67,
+                            "source": "March 2026 high"
                         }
                     ]
                 }
@@ -523,23 +533,7 @@
                 {
                     "name": "Carbon price",
                     "unit": "USD/tCO2",
-                    "values": [
-                        {
-                            "name": "Low",
-                            "value": 50,
-                            "source": "IEA"
-                        },
-                        {
-                            "name": "Mid",
-                            "value": 100,
-                            "source": "IEA"
-                        },
-                        {
-                            "name": "High",
-                            "value": 200,
-                            "source": "IEA"
-                        }
-                    ]
+                    "values": []
                 }
             ]
         }
