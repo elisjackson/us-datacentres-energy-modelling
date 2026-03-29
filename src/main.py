@@ -219,9 +219,8 @@ accordion = dbc.Accordion(
     active_item="accordion-location",
 )
 
-# TODO - replace links
-GITHUB_URL = "https://github.com"
-LINKEDIN_URL = "https://linkedin.com"
+GITHUB_URL = "https://elisjackson.github.io/"
+LINKEDIN_URL = "https://www.linkedin.com/in/elis-jackson-a428801a5/"
 
 LINKEDIN_ICON_SVG = (
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ecf0f1'%3E"
