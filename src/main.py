@@ -258,7 +258,7 @@ app_header = html.Div(
     [
         html.Div(
             [
-                html.H1("Microgrid datacentre energy optimiser", className="app-header-title"),
+                html.H1("Off-grid data centre optimiser", className="app-header-title"),
                 dbc.Button("About", id="about-button", outline=True, color="secondary", className="about-btn rounded-pill px-3"),
                 html.Div(
                     [
@@ -351,4 +351,4 @@ def toggle_about_modal(_about_n, _close_n, is_open):
 
 if __name__ == "__main__":
     # Local: run from repo root with python -m src.main (so src imports work)
-    app.run(debug=False)
+    app.run(debug=True)

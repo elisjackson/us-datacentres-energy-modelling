@@ -1,6 +1,6 @@
 # About
 
-A simple Streamlit dashboard and energy model for off-grid US datacentres.
+A simple Streamlit dashboard and energy model for off-grid US data centres.
 
 Visit my GitHub pages: [https://elisjackson.github.io/](elisjackson.github.io)
 

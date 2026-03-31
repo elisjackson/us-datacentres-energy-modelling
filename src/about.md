@@ -1,12 +1,12 @@
 ### About the app
 
-This app aims to demonstrate the most cost-effective power sources for an islanded data centre. Building it also served as something interesting to busy myself with while outdoorsy hobbies were hampered by a broken rib and dreary Midlands weather.
+This app aims to demonstrate the most cost-effective power sources for an off-grid data centre. Building it also served as something interesting to busy myself with while outdoorsy hobbies were hampered by a broken rib and dreary Midlands weather.
 
 The idea was inspired by Izzy Woolgar and Ryan Jenkinson's article, [How to accelerate the UK’s AI revolution](https://microgridai.centrefornetzero.org/).
 
 #### How to use it
 
-1. Select a PV and a Wind location. If you want. If you don't, that's fine too - it'll default to using the centroid of the UK.
+1. Select a PV and a Wind location, if you like. Weather data for your selected cells will be used. If you don't, that's fine too - it'll default to using the centroid of the UK.
 2. Select generation, storage, and carbon price options. These are used as inputs for the optimiser.
 3. Run the optimiser. It may take up to 45s if you give it something difficult.
 4. Inspect the results, test out some other cost scenarios, have fun, or try to break it.

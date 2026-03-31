@@ -1,7 +1,7 @@
 [project]
-name = "microgrid-datacentres"
+name = "off-grid-datacentres"
 version = "0.1.0"
-description = "Microgrid data centre energy model"
+description = "Off-grid data centre energy model"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

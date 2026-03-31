@@ -126,7 +126,7 @@ html {
 }
 
 /* Hide header results summary on narrow screens (disappear instead of wrap) */
-@media (max-width: 768px) {
+@media (max-width: 680px) {
     .header-summary-metrics-box {
         display: none !important;
     }
