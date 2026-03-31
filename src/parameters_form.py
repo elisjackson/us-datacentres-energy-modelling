@@ -889,12 +889,12 @@ def register_callbacks(app):
         # Check for Custom selected with value 0 or empty in any active generation card
         if cost_btn_ids is None or cost_input_ids is None:
             return False, [], {"display": "none"}
+        invalid_labels = []
         for btn_active, btn_id in zip(cost_btn_active or [], cost_btn_ids):
             if btn_id.get("card") not in active_gen_card_ids:
                 continue
             if btn_id.get("level") != "Custom" or not btn_active:
                 continue
-            # Find matching input value
             for j, inp_id in enumerate(cost_input_ids):
                 if (
                     inp_id.get("card") == btn_id.get("card")
@@ -904,8 +904,23 @@ def register_callbacks(app):
                 ):
                     val = cost_input_values[j] if cost_input_values and j < len(cost_input_values) else None
                     if val is None or val == "" or (isinstance(val, (int, float)) and val == 0):
-                        return True, dbc.Alert(
-                "⚠️ Enter a value greater than 0 for all Custom cost options in the active generation cards.",
+                        card = generation_cards_dict.get(btn_id["card"])
+                        card_title = card.title if card else btn_id["card"]
+                        subtype = btn_id.get("subtype", "")
+                        param = btn_id.get("param", "")
+                        multi_subtype = card and len(card.subtypes) > 1
+                        if multi_subtype:
+                            label = f"{card_title} ({subtype}) - {param}"
+                        elif param and param != card_title:
+                            label = f"{card_title} - {param}"
+                        else:
+                            label = card_title
+                        invalid_labels.append(label)
+                    break
+        if invalid_labels:
+            joined = ", ".join(invalid_labels)
+            return True, dbc.Alert(
+                f"⚠️ Enter a value greater than 0 for: {joined}.",
                 style={
                     "backgroundColor": "#09131f",
                     "color": "#ecf0f1",
@@ -914,7 +929,6 @@ def register_callbacks(app):
                     "borderWidth": "thin",
                 },
             ), {}
-                    break
         return False, [], {"display": "none"}
     
     
