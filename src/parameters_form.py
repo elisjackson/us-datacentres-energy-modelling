@@ -842,6 +842,8 @@ def register_callbacks(app):
         Output("optimise-button-warning", "children"),
         Output("optimise-button-warning", "style"),
         Input({"type": "generation-pill", "index": ALL}, "active"),
+        Input({"type": "storage-toggle", "index": "storage-toggle"}, "value"),
+        Input({"type": "co2-toggle", "index": "co2-toggle"}, "value"),
         Input({"type": "cost-level-btn", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "active"),
         Input({"type": "cost-value-input", "card": ALL, "subtype": ALL, "param": ALL, "level": ALL}, "value"),
         State({"type": "generation-pill", "index": ALL}, "id"),
@@ -850,6 +852,8 @@ def register_callbacks(app):
     )
     def update_optimise_button(
         pill_active_states,
+        storage_enabled,
+        co2_enabled,
         cost_btn_active,
         cost_input_values,
         pill_ids,
@@ -866,6 +870,10 @@ def register_callbacks(app):
                 for active, pid in zip(pill_active_states or [], pill_ids)
                 if active and pid.get("index") in generation_card_ids
             }
+        if storage_enabled:
+            active_gen_card_ids.add(battery_storage_card.card_id)
+        if co2_enabled:
+            active_gen_card_ids.add(co2_card.card_id)
         has_active = len(active_gen_card_ids) > 0
         if not has_active:
             return True, dbc.Alert(
