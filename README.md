@@ -1,6 +1,6 @@
 # About
 
-A simple Streamlit dashboard and energy model for off-grid US data centres.
+A Plotly Dash app and energy model for off-grid US data centres.
 
 Visit my GitHub pages: [https://elisjackson.github.io/](elisjackson.github.io)
 
@@ -32,3 +32,34 @@ To execute:
 # Docs and assumptions
 
 For documentation and assumptions, see the `docs` folder.
+
+# Deployment (GCP Cloud Run)
+
+The app is deployed at [https://datacentres.eliswyn.com](https://datacentres.eliswyn.com).
+
+## Prerequisites
+
+- [Google Cloud SDK](https://cloud.google.com/sdk/docs/install) installed and authenticated (`gcloud auth login`)
+- GCP project `us-energy-data` with the following APIs enabled:
+  - Cloud Build
+  - Cloud Run
+  - Artifact Registry
+
+## Environment variables
+
+Set the required environment variables on the Cloud Run service:
+
+```bash
+gcloud run services update us-datacentres --region us-central1 \
+    --set-env-vars "OPTIMISER_API_URL=...,AWS_ACCESS_KEY_ID=...,AWS_SECRET_ACCESS_KEY=...,AWS_REGION=eu-west-2"
+```
+
+## Build and deploy
+
+Run the deploy script from the repo root:
+
+```powershell
+.\deploy.ps1
+```
+
+This builds the Docker image via Cloud Build, pushes it to Artifact Registry, and deploys it to Cloud Run.

@@ -1,0 +1,16 @@
+.venv/
+.env
+__pycache__/
+*.pyc
+.git/
+data/
+extract_meteo_data/
+inputs/
+meteo_data/
+process_geodata/
+uv.lock
+*.egg-info/
+.streamlit/
+.devcontainer/
+TEMP - LinkedIn post.md
+src/GNESTE/
