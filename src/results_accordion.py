@@ -43,7 +43,7 @@ def _load_technology_colors():
     normalized_mapping = {}
 
     try:
-        with open(COLOR_CONFIG_PATH, "r") as f:
+        with open(COLOR_CONFIG_PATH, "r", encoding="utf-8") as f:
             color_config = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return fallback_color, normalized_mapping
@@ -476,8 +476,7 @@ def results_layout():
                 className="align-items-center gy-3",
             ),
             html.P(
-                """CAPEX costs have been annualised by dividing total CAPEX by the technology lifetime.
-                No discount rates included. All costs are in 2023 USD.""",
+                "All costs are in 2023 USD.",
                 className="mt-3 mb-2 text-note-white",
             ),
             dbc.Row(

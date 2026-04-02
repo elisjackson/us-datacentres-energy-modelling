@@ -57,6 +57,17 @@
                             "source": "DESNZ, 2023"
                         }
                     ]
+                },
+                {
+                    "name": "Discount rate",
+                    "unit": "%",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 5.2,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
                 }
             ]
         },
@@ -117,6 +128,17 @@
                             "source": "DESNZ, 2023"
                         }
                     ]
+                },
+                {
+                    "name": "Discount rate",
+                    "unit": "%",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 6.3,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
                 }
             ]
         }
@@ -165,6 +187,17 @@
                         {
                             "name": "Mid",
                             "value": 35,
+                            "source": "DESNZ, 2024"
+                        }
+                    ]
+                },
+                {
+                    "name": "Discount rate",
+                    "unit": "%",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 5,
                             "source": "DESNZ, 2024"
                         }
                     ]
@@ -262,6 +295,17 @@
                             "source": "DESNZ, 2023"
                         }
                     ]
+                },
+                {
+                    "name": "Discount rate",
+                    "unit": "%",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 7,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
                 }
             ]
         },
@@ -354,6 +398,17 @@
                             "source": "DESNZ, 2023"
                         }
                     ]
+                },
+                {
+                    "name": "Discount rate",
+                    "unit": "%",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 7,
+                            "source": "DESNZ, 2023"
+                        }
+                    ]
                 }
             ]
         }
@@ -368,38 +423,54 @@
                         {
                             "name": "Low",
                             "value": 3880,
-                            "source": "Rolls-Royce, 2025 [REF], NOAK"
+                            "source": "Rolls-Royce target cost for UK's first SMR (£1.8bn for 470MW) ([neuronbytes.com](https://neutronbytes.com/2025/06/10/uk-awards-2-5-billion-for-a-rolls-royce-smr-funds-14-2-billion-for-sizewell-c/))"
+                        },
+                        {
+                            "name": "Mid",
+                            "value": 6000,
+                            "source": "Wood Mackenzie FOAK low-end estimate ([woodmac.com](https://www.woodmac.com/press-releases/nuclear-needs-to-be-cost-competitive-with--alternative-power-generation-to-enable-net-zero/))"
                         },
                         {
                             "name": "High",
-                            "value": 4850,
-                            "source": "Rolls-Royce, 2025 [REF], FOAK"
+                            "value": 8000,
+                            "source": "Wood Mackenzie FOAK high-end estimate ([woodmac.com](https://www.woodmac.com/press-releases/nuclear-needs-to-be-cost-competitive-with--alternative-power-generation-to-enable-net-zero/))"
                         }
                     ]
                 },
                 {
-                    "name": "Power cost",
+                    "name": "Variable OPEX",
                     "unit": "2023 USD/MWh",
                     "values": [
                         {
                             "name": "Low",
-                            "value": 85,
-                            "source": "Rolls-Royce, 2025 [REF]"
+                            "value": 12.25,
+                            "source": "Net Zero World Initiative [Nuclear Energy Cost Estimates for Net Zero World Initiative - 2024 Update](https://inldigitallibrary.inl.gov/sites/sti/sti/Sort_130016.pdf), values for US used"
                         },
                         {
                             "name": "Mid",
-                            "value": 106,
-                            "source": "IFP FOAK estimate, deflated from 2024 to 2023 USD"
+                            "value": 13.5,
+                            "source": "Net Zero World Initiative [Nuclear Energy Cost Estimates for Net Zero World Initiative - 2024 Update](https://inldigitallibrary.inl.gov/sites/sti/sti/Sort_130016.pdf), values for US used"
                         },
                         {
                             "name": "High",
-                            "value": 175,
-                            "source": "Liebreich, 2024, based on new conventional nuclear costs deflated from 2024 to 2023 USD"
+                            "value": 14.75,
+                            "source": "Net Zero World Initiative [Nuclear Energy Cost Estimates for Net Zero World Initiative - 2024 Update](https://inldigitallibrary.inl.gov/sites/sti/sti/Sort_130016.pdf), values for US used"
                         }
                     ]
                 }
             ],
             "cost_assumptions": [
+                {
+                    "name": "Fixed OPEX",
+                    "unit": "2023 USD/kW/yr",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 145,
+                            "source": "Net Zero World Initiative [Nuclear Energy Cost Estimates for Net Zero World Initiative - 2024 Update](https://inldigitallibrary.inl.gov/sites/sti/sti/Sort_130016.pdf)"
+                        }
+                    ]
+                },
                 {
                     "name": "Lifetime",
                     "unit": "Years",
@@ -407,7 +478,18 @@
                         {
                             "name": "Mid",
                             "value": 60,
-                            "source": ""
+                            "source": "Rolls-Royce"
+                        }
+                    ]
+                },
+                {
+                    "name": "Discount rate",
+                    "unit": "%",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 9,
+                            "source": "Upper end of [IEA modelling assumptions](https://www.iea.org/reports/global-energy-and-climate-model/techno-economic-inputs) for traditional nuclear"
                         }
                     ]
                 }
@@ -464,17 +546,17 @@
                         {
                             "name": "Low",
                             "value": 361,
-                            "source": "Ember Energy, 2025"
+                            "source": "[Ember Energy, 2025](https://ember-energy.org/latest-updates/batteries-now-cheap-enough-to-deliver-solar-when-it-is-needed/), converted to /kW cost"
                         },
                         {
                             "name": "Mid",
                             "value": 619,
-                            "source": "... average ..."
+                            "source": "Mid point of Low and High"
                         },
                         {
                             "name": "High",
                             "value": 877,
-                            "source": "Haush..."
+                            "source": "[Haush, 2025](https://haush.co.uk/renewable-energy-storage-technologies/)"
                         }
                     ]
                 }
@@ -520,7 +602,18 @@
                         {
                             "name": "Mid",
                             "value": 20,
-                            "source": "Ember"
+                            "source": "Ember Energy"
+                        }
+                    ]
+                },
+                {
+                    "name": "Discount rate",
+                    "unit": "%",
+                    "values": [
+                        {
+                            "name": "Mid",
+                            "value": 7,
+                            "source": ""
                         }
                     ]
                 }

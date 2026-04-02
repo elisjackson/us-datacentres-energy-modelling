@@ -20,6 +20,22 @@ CONFIG_DIR = DIR / "config"
 # Fallback map coordinates when no solar/wind location is selected (used by optimiser and modal warning).
 DEFAULT_MAP_LOCATION = {"lat": 54.00366, "lon": -2.54786}
 
+# Config stores discount as a percentage; the optimiser API expects a fraction (0–1 scale).
+DISCOUNT_RATE_PARAM = "Discount rate"
+DISCOUNT_RATE_API_UNIT = "per year (fraction)"
+
+
+def _assumption_value_for_api(cost_parameter: str, value, unit):
+    """Map cost_assumptions rows to API fields. Discount rate values are % in config."""
+    if cost_parameter != DISCOUNT_RATE_PARAM:
+        return value, unit
+    if value is None:
+        return None, DISCOUNT_RATE_API_UNIT
+    try:
+        return float(value) / 100.0, DISCOUNT_RATE_API_UNIT
+    except (TypeError, ValueError):
+        return value, unit
+
 class GenerationInput():
     """
     A collapsible card for a generation type.
@@ -110,7 +126,15 @@ class GenerationInput():
                     dbc.Col(html.Span(row["cost_parameter"]), width=3, className="assumptions-cell"),
                     dbc.Col(html.Span(row["value"]), width=3, className="assumptions-cell assumptions-cell-value"),
                     dbc.Col(html.Span(row["unit"]), width=3, className="assumptions-cell assumptions-cell-unit"),
-                    dbc.Col(html.Span(row["source"]), width=3, className="assumptions-cell assumptions-cell-source"),
+                    dbc.Col(
+                        dcc.Markdown(
+                            row["source"],
+                            className="source-markdown",
+                            link_target="_blank",
+                        ),
+                        width=3,
+                        className="assumptions-cell assumptions-cell-source",
+                    ),
                 ], className="assumptions-data-row")
             )
         return html.Div([
@@ -266,7 +290,11 @@ class GenerationInput():
         return html.Div([
             html.Label(f"Select {cost_parameter} ({unit})", className="cost-column-header text-label-blue"),
             *level_rows,
-            html.P(source_text, className="text-muted-small mt-2"),
+            dcc.Markdown(
+                source_text,
+                className="text-muted-small mt-2 source-markdown",
+                link_target="_blank",
+            ),
         ])
 
     def build_collapsible_card(self, is_open: bool = False):
@@ -336,7 +364,7 @@ class GenerationInput():
 
 
 # read generation form from config/generation_form.json
-with open(CONFIG_DIR / "technology_costs.json", "r") as f:
+with open(CONFIG_DIR / "technology_costs.json", "r", encoding="utf-8") as f:
     GENERATION_CONFIG = json.load(f)
 
 
@@ -1177,10 +1205,10 @@ def register_callbacks(app):
                     card.cost_assumptions_df["subtype"] == selected_subtype
                 ]
                 for _, row in assumptions_df.iterrows():
-                    costs[row["cost_parameter"]] = {
-                        'value': row["value"],
-                        'unit': row["unit"],
-                    }
+                    v, u = _assumption_value_for_api(
+                        row["cost_parameter"], row["value"], row["unit"]
+                    )
+                    costs[row["cost_parameter"]] = {'value': v, 'unit': u}
             
             # Build entry for this generation type
             parameters['generation'][gen_type] = {
@@ -1244,11 +1272,10 @@ def register_callbacks(app):
                     card.cost_assumptions_df["subtype"] == selected_subtype
                 ]
                 for _, row in assumptions_df.iterrows():
-                    costs[row["cost_parameter"]] = {
-                        'value': row["value"],
-                        'unit': row["unit"],
-                        
-                    }
+                    v, u = _assumption_value_for_api(
+                        row["cost_parameter"], row["value"], row["unit"]
+                    )
+                    costs[row["cost_parameter"]] = {'value': v, 'unit': u}
             
             parameters['battery_storage'] = {
                 'enabled': True,

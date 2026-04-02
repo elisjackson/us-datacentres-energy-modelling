@@ -18,7 +18,6 @@ I've written about this in my [GitHub pages](https://elisjackson.github.io/).
 #### Future to-dos
 
 - Tidy up repo & make public
-- Include discounting
 - Add an option for electricity from the grid?
 - Use a "typical meteorological year" weather file - the current weather data (ERA5) uses 2025 weather. This was an unusually sunny year in the UK, which likely makes Solar PV come out a bit more favourable than it should
 - Any other ideas? Let me know through [my LinkedIn](https://www.linkedin.com/in/elis-jackson-a428801a5)

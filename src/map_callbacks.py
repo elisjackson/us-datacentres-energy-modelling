@@ -87,7 +87,7 @@ def _get_gdf_data(country: str):
     if cache_key in _gdf_cache:
         return _gdf_cache[cache_key]
 
-    with open(filepath, "r") as f:
+    with open(filepath, "r", encoding="utf-8") as f:
         gdf = gpd.read_file(f)
 
     # check gdf is in EPSG:4326

@@ -754,6 +754,17 @@ html {
     font-size: 0.8rem;
 }
 
+/* dcc.Markdown wraps inline source text in <p>; remove extra vertical gap in table cells */
+.source-markdown p {
+    margin: 0;
+}
+.source-markdown a {
+    color: #7eb8e8;
+}
+.source-markdown a:hover {
+    color: #a8d4f5;
+}
+
 /* Assumptions columns: equal defaults, but Value shrinks sooner if needed */
 .additional-assumptions .assumptions-header-row > .col-3,
 .additional-assumptions .assumptions-data-row > .col-3 {
