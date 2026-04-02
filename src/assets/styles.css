@@ -325,7 +325,7 @@ html {
     padding: 0.35rem 0.6rem;
     border-radius: 4px;
 }
-/* Wrapped colorbar title overlay – full text, no wording change */
+/* Wrapped colorbar title overlay */
 .map-colorbar-title {
     position: absolute;
     right: 0.5rem;
@@ -352,7 +352,6 @@ html {
     .map-graph {
         height: auto;
         max-height: 260px;
-        aspect-ratio: 4 / 3;
     }
 }
 
